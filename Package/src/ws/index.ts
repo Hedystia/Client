@@ -1,8 +1,81 @@
 import type Client from "@/client";
 
 // Events
-import Ready from "@/events/ready";
+import ApplicationCommandPermissionsUpdate from "@/events/applicationCommandPermissionsUpdate";
+import AutoModerationActionExecution from "@/events/autoModerationActionExecution";
+import AutoModerationRuleCreate from "@/events/autoModerationRuleCreate";
+import AutoModerationRuleDelete from "@/events/autoModerationRuleDelete";
+import AutoModerationRuleUpdate from "@/events/autoModerationRuleUpdate";
+import ChannelCreate from "@/events/channelCreate";
+import ChannelDelete from "@/events/channelDelete";
+import ChannelPinsUpdate from "@/events/channelPinsUpdate";
+import ChannelUpdate from "@/events/channelUpdate";
+import EntitlementCreate from "@/events/entitlementCreate";
+import EntitlementDelete from "@/events/entitlementDelete";
+import EntitlementUpdate from "@/events/entitlementUpdate";
+import GuildAuditLogEntryCreate from "@/events/guildAuditLogEntryCreate";
+import GuildBanAdd from "@/events/guildBanAdd";
+import GuildBanRemove from "@/events/guildBanRemove";
+import GuildCreate from "@/events/guildCreate";
+import GuildDelete from "@/events/guildDelete";
+import GuildEmojisUpdate from "@/events/guildEmojisUpdate";
+import GuildIntegrationsUpdate from "@/events/guildIntegrationsUpdate";
+import GuildMemberAdd from "@/events/guildMemberAdd";
+import GuildMemberRemove from "@/events/guildMemberRemove";
+import GuildMembersChunk from "@/events/guildMembersChunk";
+import GuildMemberUpdate from "@/events/guildMemberUpdate";
+import GuildRoleCreate from "@/events/guildRoleCreate";
+import GuildRoleDelete from "@/events/guildRoleDelete";
+import GuildRoleUpdate from "@/events/guildRoleUpdate";
+import GuildScheduledEventCreate from "@/events/guildScheduledEventCreate";
+import GuildScheduledEventDelete from "@/events/guildScheduledEventDelete";
+import GuildScheduledEventUpdate from "@/events/guildScheduledEventUpdate";
+import GuildScheduledEventUserAdd from "@/events/guildScheduledEventUserAdd";
+import GuildScheduledEventUserRemove from "@/events/guildScheduledEventUserRemove";
+import GuildSoundboardSoundCreate from "@/events/guildSoundboardSoundCreate";
+import GuildSoundboardSoundDelete from "@/events/guildSoundboardSoundDelete";
+import GuildSoundboardSoundsUpdate from "@/events/guildSoundboardSoundsUpdate";
+import GuildSoundboardSoundUpdate from "@/events/guildSoundboardSoundUpdate";
+import SoundboardSounds from "@/events/soundboardSounds";
+import GuildStickersUpdate from "@/events/guildStickersUpdate";
+import GuildUpdate from "@/events/guildUpdate";
+import IntegrationCreate from "@/events/integrationCreate";
+import IntegrationDelete from "@/events/integrationDelete";
+import IntegrationUpdate from "@/events/integrationUpdate";
 import InteractionCreate from "@/events/interactionCreate";
+import InviteCreate from "@/events/inviteCreate";
+import InviteDelete from "@/events/inviteDelete";
+import MessageCreate from "@/events/messageCreate";
+import MessageDelete from "@/events/messageDelete";
+import MessageDeleteBulk from "@/events/messageDeleteBulk";
+import MessagePollVoteAdd from "@/events/messagePollVoteAdd";
+import MessagePollVoteRemove from "@/events/messagePollVoteRemove";
+import MessageReactionAdd from "@/events/messageReactionAdd";
+import MessageReactionRemove from "@/events/messageReactionRemove";
+import MessageReactionRemoveAll from "@/events/messageReactionRemoveAll";
+import MessageReactionRemoveEmoji from "@/events/messageReactionRemoveEmoji";
+import MessageUpdate from "@/events/messageUpdate";
+import PresenceUpdate from "@/events/presenceUpdate";
+import Ready from "@/events/ready";
+import Resumed from "@/events/resumed";
+import StageInstanceCreate from "@/events/stageInstanceCreate";
+import StageInstanceDelete from "@/events/stageInstanceDelete";
+import StageInstanceUpdate from "@/events/stageInstanceUpdate";
+import SubscriptionCreate from "@/events/subscriptionCreate";
+import SubscriptionDelete from "@/events/subscriptionDelete";
+import SubscriptionUpdate from "@/events/subscriptionUpdate";
+import ThreadCreate from "@/events/threadCreate";
+import ThreadDelete from "@/events/threadDelete";
+import ThreadListSync from "@/events/threadListSync";
+import ThreadMembersUpdate from "@/events/threadMembersUpdate";
+import ThreadMemberUpdate from "@/events/threadMemberUpdate";
+import ThreadUpdate from "@/events/threadUpdate";
+import TypingStart from "@/events/typingStart";
+import UserUpdate from "@/events/userUpdate";
+import VoiceChannelEffectSend from "@/events/voiceChannelEffectSend";
+import VoiceServerUpdate from "@/events/voiceServerUpdate";
+import VoiceStateUpdate from "@/events/voiceStateUpdate";
+import WebhooksUpdate from "@/events/webhooksUpdate";
 
 import { OpCodes } from "@/utils/constants";
 import { GatewayDispatchEvents } from "discord-api-types/v10";
@@ -149,13 +222,195 @@ export default class WebSocketManager extends EventEmitter {
           }
 
           switch (event) {
-            // READY
-            case GatewayDispatchEvents.Ready:
-              return new Ready(this.client, d);
+            // APPLICATION
+            case GatewayDispatchEvents.ApplicationCommandPermissionsUpdate:
+              return new ApplicationCommandPermissionsUpdate(this.client, d);
+
+            // AUTO MODERATION
+            case GatewayDispatchEvents.AutoModerationActionExecution:
+              return new AutoModerationActionExecution(this.client, d);
+            case GatewayDispatchEvents.AutoModerationRuleCreate:
+              return new AutoModerationRuleCreate(this.client, d);
+            case GatewayDispatchEvents.AutoModerationRuleDelete:
+              return new AutoModerationRuleDelete(this.client, d);
+            case GatewayDispatchEvents.AutoModerationRuleUpdate:
+              return new AutoModerationRuleUpdate(this.client, d);
+
+            // CHANNEL
+            case GatewayDispatchEvents.ChannelCreate:
+              return new ChannelCreate(this.client, d);
+            case GatewayDispatchEvents.ChannelDelete:
+              return new ChannelDelete(this.client, d);
+            case GatewayDispatchEvents.ChannelPinsUpdate:
+              return new ChannelPinsUpdate(this.client, d);
+            case GatewayDispatchEvents.ChannelUpdate:
+              return new ChannelUpdate(this.client, d);
+
+            // ENTITLEMENT
+            case GatewayDispatchEvents.EntitlementCreate:
+              return new EntitlementCreate(this.client, d);
+            case GatewayDispatchEvents.EntitlementDelete:
+              return new EntitlementDelete(this.client, d);
+            case GatewayDispatchEvents.EntitlementUpdate:
+              return new EntitlementUpdate(this.client, d);
+
+            // GUILD
+            case GatewayDispatchEvents.GuildAuditLogEntryCreate:
+              return new GuildAuditLogEntryCreate(this.client, d);
+            case GatewayDispatchEvents.GuildBanAdd:
+              return new GuildBanAdd(this.client, d);
+            case GatewayDispatchEvents.GuildBanRemove:
+              return new GuildBanRemove(this.client, d);
+            case GatewayDispatchEvents.GuildCreate:
+              return new GuildCreate(this.client, d);
+            case GatewayDispatchEvents.GuildDelete:
+              return new GuildDelete(this.client, d);
+            case GatewayDispatchEvents.GuildEmojisUpdate:
+              return new GuildEmojisUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildIntegrationsUpdate:
+              return new GuildIntegrationsUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildMemberAdd:
+              return new GuildMemberAdd(this.client, d);
+            case GatewayDispatchEvents.GuildMemberRemove:
+              return new GuildMemberRemove(this.client, d);
+            case GatewayDispatchEvents.GuildMembersChunk:
+              return new GuildMembersChunk(this.client, d);
+            case GatewayDispatchEvents.GuildMemberUpdate:
+              return new GuildMemberUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildRoleCreate:
+              return new GuildRoleCreate(this.client, d);
+            case GatewayDispatchEvents.GuildRoleDelete:
+              return new GuildRoleDelete(this.client, d);
+            case GatewayDispatchEvents.GuildRoleUpdate:
+              return new GuildRoleUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildScheduledEventCreate:
+              return new GuildScheduledEventCreate(this.client, d);
+            case GatewayDispatchEvents.GuildScheduledEventDelete:
+              return new GuildScheduledEventDelete(this.client, d);
+            case GatewayDispatchEvents.GuildScheduledEventUpdate:
+              return new GuildScheduledEventUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildScheduledEventUserAdd:
+              return new GuildScheduledEventUserAdd(this.client, d);
+            case GatewayDispatchEvents.GuildScheduledEventUserRemove:
+              return new GuildScheduledEventUserRemove(this.client, d);
+            case GatewayDispatchEvents.GuildSoundboardSoundCreate:
+              return new GuildSoundboardSoundCreate(this.client, d);
+            case GatewayDispatchEvents.GuildSoundboardSoundDelete:
+              return new GuildSoundboardSoundDelete(this.client, d);
+            case GatewayDispatchEvents.GuildSoundboardSoundsUpdate:
+              return new GuildSoundboardSoundsUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildSoundboardSoundUpdate:
+              return new GuildSoundboardSoundUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildStickersUpdate:
+              return new GuildStickersUpdate(this.client, d);
+            case GatewayDispatchEvents.GuildUpdate:
+              return new GuildUpdate(this.client, d);
+
+            // SOUNDBOARD
+            case GatewayDispatchEvents.SoundboardSounds:
+              return new SoundboardSounds(this.client, d);
+
+            // INTEGRATION
+            case GatewayDispatchEvents.IntegrationCreate:
+              return new IntegrationCreate(this.client, d);
+            case GatewayDispatchEvents.IntegrationDelete:
+              return new IntegrationDelete(this.client, d);
+            case GatewayDispatchEvents.IntegrationUpdate:
+              return new IntegrationUpdate(this.client, d);
 
             // INTERACTION
             case GatewayDispatchEvents.InteractionCreate:
               return new InteractionCreate(this.client, d);
+
+            // INVITE
+            case GatewayDispatchEvents.InviteCreate:
+              return new InviteCreate(this.client, d);
+            case GatewayDispatchEvents.InviteDelete:
+              return new InviteDelete(this.client, d);
+
+            // MESSAGE
+            case GatewayDispatchEvents.MessageCreate:
+              return new MessageCreate(this.client, d);
+            case GatewayDispatchEvents.MessageDelete:
+              return new MessageDelete(this.client, d);
+            case GatewayDispatchEvents.MessageDeleteBulk:
+              return new MessageDeleteBulk(this.client, d);
+            case GatewayDispatchEvents.MessagePollVoteAdd:
+              return new MessagePollVoteAdd(this.client, d);
+            case GatewayDispatchEvents.MessagePollVoteRemove:
+              return new MessagePollVoteRemove(this.client, d);
+            case GatewayDispatchEvents.MessageReactionAdd:
+              return new MessageReactionAdd(this.client, d);
+            case GatewayDispatchEvents.MessageReactionRemove:
+              return new MessageReactionRemove(this.client, d);
+            case GatewayDispatchEvents.MessageReactionRemoveAll:
+              return new MessageReactionRemoveAll(this.client, d);
+            case GatewayDispatchEvents.MessageReactionRemoveEmoji:
+              return new MessageReactionRemoveEmoji(this.client, d);
+            case GatewayDispatchEvents.MessageUpdate:
+              return new MessageUpdate(this.client, d);
+
+            // PRESENCE
+            case GatewayDispatchEvents.PresenceUpdate:
+              return new PresenceUpdate(this.client, d);
+
+            // READY
+            case GatewayDispatchEvents.Ready:
+              return new Ready(this.client, d);
+
+            // RESUMED
+            case GatewayDispatchEvents.Resumed:
+              return new Resumed(this.client, d);
+
+            // STAGE
+            case GatewayDispatchEvents.StageInstanceCreate:
+              return new StageInstanceCreate(this.client, d);
+            case GatewayDispatchEvents.StageInstanceDelete:
+              return new StageInstanceDelete(this.client, d);
+            case GatewayDispatchEvents.StageInstanceUpdate:
+              return new StageInstanceUpdate(this.client, d);
+
+            // SUBSCRIPTION
+            case GatewayDispatchEvents.SubscriptionCreate:
+              return new SubscriptionCreate(this.client, d);
+            case GatewayDispatchEvents.SubscriptionDelete:
+              return new SubscriptionDelete(this.client, d);
+            case GatewayDispatchEvents.SubscriptionUpdate:
+              return new SubscriptionUpdate(this.client, d);
+
+            // THREAD
+            case GatewayDispatchEvents.ThreadCreate:
+              return new ThreadCreate(this.client, d);
+            case GatewayDispatchEvents.ThreadDelete:
+              return new ThreadDelete(this.client, d);
+            case GatewayDispatchEvents.ThreadListSync:
+              return new ThreadListSync(this.client, d);
+            case GatewayDispatchEvents.ThreadMembersUpdate:
+              return new ThreadMembersUpdate(this.client, d);
+            case GatewayDispatchEvents.ThreadMemberUpdate:
+              return new ThreadMemberUpdate(this.client, d);
+            case GatewayDispatchEvents.ThreadUpdate:
+              return new ThreadUpdate(this.client, d);
+
+            // TYPING
+            case GatewayDispatchEvents.TypingStart:
+              return new TypingStart(this.client, d);
+
+            // USER
+            case GatewayDispatchEvents.UserUpdate:
+              return new UserUpdate(this.client, d);
+
+            // VOICE
+            case GatewayDispatchEvents.VoiceChannelEffectSend:
+              return new VoiceChannelEffectSend(this.client, d);
+            case GatewayDispatchEvents.VoiceServerUpdate:
+              return new VoiceServerUpdate(this.client, d);
+            case GatewayDispatchEvents.VoiceStateUpdate:
+              return new VoiceStateUpdate(this.client, d);
+
+            // WEBHOOK
+            case GatewayDispatchEvents.WebhooksUpdate:
+              return new WebhooksUpdate(this.client, d);
           }
         }
         break;
