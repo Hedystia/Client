@@ -1,0 +1,9 @@
+{
+  "workspaces": ["Package", "Tests"],
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

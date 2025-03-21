@@ -1,114 +1,112 @@
-import Client from "../client";
+interface RESTClient {
+  restRequestTimeout: number;
+  token?: string;
+  version: number;
+}
 
-export default class Rest {
-  client: Client;
-  constructor(client: Client) {
-    this.client = client;
+interface RequestOptions extends RequestInit {
+  query?: Record<string, string | string[]>;
+  reason?: string;
+  headers?: Record<string, string>;
+  // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+  body?: any;
+  throwError?: boolean;
+}
+
+class REST {
+  private token?: string;
+
+  constructor(private client: RESTClient) {}
+
+  setToken(token: string) {
+    this.token = token;
+    return this;
   }
-  get(endpoint: string) {
-    return new Promise((resolve, reject) => {
-      fetch(this.client.root + endpoint, {
-        method: "GET",
-        headers: {
-          Authorization: `Bot ${this.client.token}`,
-          "User-Agent": "Hedystia.js",
-        },
-      })
-        .then((data) => data.json())
-        .then((data) => resolve(data))
-        .catch((error) => reject(error));
-    });
+
+  private async _make<T>(defaultUrl: string, options: RequestOptions = {}): Promise<T | null> {
+    let url = defaultUrl;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.client.restRequestTimeout);
+
+    const headers: Record<string, string> = {
+      "Content-Type": options.headers?.["Content-Type"] || "application/json",
+      Authorization: options.headers?.Authorization || `${this.token ?? this.client.token}`,
+    };
+
+    if (options.reason) {
+      headers["X-Audit-Log-Reason"] = options.reason;
+    }
+
+    // biome-ignore lint/suspicious/noExplicitAny: <explanation>
+    let body: any;
+
+    if (options.body) {
+      if (options.body instanceof Buffer) {
+        body = options.body;
+      } else if (typeof options.body === "string") {
+        body = options.body;
+      } else {
+        body = JSON.stringify(options.body);
+      }
+    }
+
+    if (options.query) {
+      const queryParams = new URLSearchParams();
+      for (const [key, val] of Object.entries(options.query)) {
+        if (val) {
+          if (Array.isArray(val)) {
+            queryParams.set(key, val.join(","));
+          } else {
+            queryParams.append(key, val);
+          }
+        }
+      }
+      url += `?${queryParams.toString()}`;
+    }
+
+    const response = await fetch(`${this.root}${url}`, {
+      method: options.method,
+      headers,
+      body,
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      if (options.throwError !== false) {
+        throw new Error(
+          `Request failed with status ${response.status}: ${(errorData as Error)?.message || response.statusText}`,
+        );
+      }
+      return errorData as T;
+    }
+
+    return response.status !== 204 ? ((await response.json().catch(() => null)) as T) : null;
   }
-  post(
-    endpoint: string,
-    data: {
-      reason: string | undefined;
-      body: Object;
-    },
-  ) {
-    return new Promise((resolve, reject) => {
-      fetch(this.client.root + endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${this.client.token}`,
-          "User-Agent": "Hedystia.js",
-          "Content-Type": "application/json",
-          "X-Audit-Log-Reason": data.reason || "",
-        },
-        body: JSON.stringify(data.body),
-      })
-        .then((data) => data.json())
-        .then((data) => resolve(data))
-        .catch((error) => reject(error));
-    });
+
+  get<T>(url: string, options: RequestOptions = {}) {
+    return this._make<T>(url, { method: "GET", ...options });
   }
-  put(
-    endpoint: string,
-    data: {
-      reason: string | undefined;
-      body: Object;
-    },
-  ) {
-    return new Promise((resolve, reject) => {
-      fetch(this.client.root + endpoint, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bot ${this.client.token}`,
-          "User-Agent": "Hedystia.js",
-          "Content-Type": "application/json",
-          "X-Audit-Log-Reason": data.reason || "",
-        },
-        body: JSON.stringify(data.body),
-      })
-        .then((data) => data.json())
-        .then((data) => resolve(data))
-        .catch((error) => reject(error));
-    });
+
+  post<T>(url: string, options: RequestOptions = {}) {
+    return this._make<T>(url, { method: "POST", ...options });
   }
-  patch(
-    endpoint: string,
-    data: {
-      reason: string | undefined;
-      body: Object;
-    },
-  ) {
-    return new Promise((resolve, reject) => {
-      fetch(this.client.root + endpoint, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bot ${this.client.token}`,
-          "User-Agent": "Hedystia.js",
-          "Content-Type": "application/json",
-          "X-Audit-Log-Reason": data.reason || "",
-        },
-        body: JSON.stringify(data.body),
-      })
-        .then((data) => data.json())
-        .then((data) => resolve(data))
-        .catch((error) => reject(error));
-    });
+
+  delete<T>(url: string, options: RequestOptions = {}) {
+    return this._make<T>(url, { method: "DELETE", ...options });
   }
-  delete(
-    endpoint: string,
-    data: {
-      reason: string | undefined;
-      body: Object;
-    },
-  ) {
-    return new Promise((resolve, reject) => {
-      fetch(this.client.root + endpoint, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bot ${this.client.token}`,
-          "User-Agent": "Hedystia.js",
-          "Content-Type": "application/json",
-          "X-Audit-Log-Reason": data.reason || "",
-        },
-        body: JSON.stringify(data.body),
-      })
-        .then((data) => data.json())
-        .then((data) => resolve(data))
-        .catch((error) => reject(error));
-    });
+
+  put<T>(url: string, options: RequestOptions = {}) {
+    return this._make<T>(url, { method: "PUT", ...options });
+  }
+
+  patch<T>(url: string, options: RequestOptions = {}) {
+    return this._make<T>(url, { method: "PATCH", ...options });
+  }
+
+  get root() {
+    return `https://discord.com/api/v${this.client.version}`;
   }
 }
+
+export default REST;

@@ -1,13 +1,9 @@
-# `This code is beta and has no functions only the basics, if you want something that works you can use the hedystia.js npm.`
+# `This code is beta and has no functions only the basics, if you want something that works you can use the @hedystia/discord npm.`
 
 ## Installation
 
 ```
-npm i hedystia.js_lite
 
-yarn add hedystia.js_lite
-
-pnpm install hedystia.js_lite
 ```
 
 ## Nodejs Version
@@ -33,4 +29,3 @@ pnpm install hedystia.js_lite
 - Commit and push: Once you have made your changes, commit them and push the branch to your forked repository.
 
 - Create a pull request.
-y
