@@ -5,6 +5,7 @@ import ShardManager from "./ShardManager";
 import EventEmitter from "node:events";
 import Intents from "@/utils/intents";
 import type { ClientEvents } from "@/types/ClientEvents";
+import type { APIUser } from "discord-api-types/v10";
 
 export interface ClientOptions {
   token: string;
@@ -34,6 +35,7 @@ export default class Client extends EventEmitter<ClientEvents> {
   shardManager: ShardManager;
   readyAt!: Date;
   useSharding: boolean;
+  me?: APIUser;
 
   constructor(options: ClientOptions) {
     super();

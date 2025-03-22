@@ -20,6 +20,7 @@ export default class Ready {
     const packet = data.d;
     this.client.ws.sessionId = packet.session_id;
     this.client.ws.resumeGatewayUrl = packet.resume_gateway_url;
+    this.client.me = packet.user;
     this.client.emit("ready", packet);
   }
 }
