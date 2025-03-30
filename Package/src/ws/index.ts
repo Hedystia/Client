@@ -100,6 +100,7 @@ export default class WebSocketManager extends EventEmitter {
   closeSequence = 0;
   reconnectAttempts = 0;
   maxReconnectAttempts = 10;
+  reconnectTimeout?: NodeJS.Timeout;
 
   constructor(client: Client, shardId = 0, shardCount = 1) {
     super();
@@ -114,6 +115,11 @@ export default class WebSocketManager extends EventEmitter {
     }
 
     try {
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = undefined;
+      }
+
       if (this.shardId === 0 && this.status === "disconnected") {
         await this.client.rest.get("/users/@me").catch(() => {
           throw new Error("Invalid token");
@@ -142,14 +148,31 @@ export default class WebSocketManager extends EventEmitter {
         clearInterval(this.interval);
         this.emit("close", code);
 
-        if ([1000, 4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
+        if ([4004, 4010, 4011, 4012, 4013, 4014].includes(code)) {
+          return;
+        }
+
+        if (code === 1000) {
+          this.reconnectTimeout = setTimeout(() => this.connect(), 2000) as NodeJS.Timeout;
+          return;
+        }
+
+        if (code === 4005) {
+          this.sessionId = "";
+          this.sequence = 0;
+          this.reconnectTimeout = setTimeout(() => this.connect(), 5000) as NodeJS.Timeout;
           return;
         }
 
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
           this.reconnectAttempts++;
-          const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 30000);
-          setTimeout(() => this.connect(), delay);
+          const delay = Math.min(1000 * 2 ** this.reconnectAttempts + Math.random() * 1000, 30000);
+          this.reconnectTimeout = setTimeout(() => this.connect(), delay) as NodeJS.Timeout;
+        } else {
+          this.reconnectTimeout = setTimeout(() => {
+            this.reconnectAttempts = 0;
+            this.connect();
+          }, 60000) as NodeJS.Timeout;
         }
       });
 
@@ -172,27 +195,30 @@ export default class WebSocketManager extends EventEmitter {
     switch (d.op) {
       case OpCodes.Hello:
         if (this.interval) clearInterval(this.interval);
-        setTimeout(() => {
+
+        this.send({ op: 1, d: this.sequence || null });
+        this.lastHeartbeat = Date.now();
+        this.lastHeartbeatAck = Date.now();
+
+        this.interval = setInterval(() => {
+          if (this.lastHeartbeat > 0 && this.lastHeartbeatAck < this.lastHeartbeat) {
+            this.connection.close(1001);
+            return;
+          }
+
           this.send({ op: 1, d: this.sequence || null });
           this.lastHeartbeat = Date.now();
-          this.interval = setInterval(() => {
-            if (
-              this.lastHeartbeat &&
-              this.lastHeartbeatAck &&
-              this.lastHeartbeatAck < this.lastHeartbeat
-            ) {
-              this.connection.close(1001);
-            } else {
-              this.send({ op: 1, d: this.sequence || null });
-              this.ping = this.lastHeartbeatAck - this.lastHeartbeat;
-              this.lastHeartbeat = Date.now();
-            }
-          }, d.d.heartbeat_interval);
-        }, d.d.heartbeat_interval * Math.random());
+        }, d.d.heartbeat_interval);
         break;
 
       case OpCodes.Heartbeat_Ack:
         this.lastHeartbeatAck = Date.now();
+        this.ping = this.lastHeartbeatAck - this.lastHeartbeat;
+        break;
+
+      case OpCodes.Heartbeat:
+        this.send({ op: 1, d: this.sequence || null });
+        this.lastHeartbeat = Date.now();
         break;
 
       case OpCodes.Reconnect:
@@ -219,6 +245,9 @@ export default class WebSocketManager extends EventEmitter {
             this.resumeGatewayUrl = d.d.resume_gateway_url;
             this.status = "ready";
             this.emit("ready");
+          } else if (event === GatewayDispatchEvents.Resumed) {
+            this.status = "ready";
+            this.emit("resume");
           }
 
           switch (event) {
@@ -443,12 +472,18 @@ export default class WebSocketManager extends EventEmitter {
         seq: this.sequence,
       },
     });
-    this.emit("resume");
   }
 
   send(data: object): void {
-    if (this.connected && this.connection.readyState === ws.OPEN) {
-      this.connection.send(JSON.stringify(data));
+    if (this.connected && this.connection && this.connection.readyState === ws.OPEN) {
+      try {
+        this.connection.send(JSON.stringify(data));
+      } catch (error) {
+        this.emit("error", error);
+        if (this.connection.readyState !== ws.OPEN) {
+          this.connection.close(1001);
+        }
+      }
     }
   }
 
