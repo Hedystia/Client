@@ -1,9 +1,13 @@
-import { Client, Intents } from "../Package/src";
+import { Client, Intents, Status } from "../Package/src";
 
 const client = new Client({
   token: process.env.BOT_TOKEN ?? "",
-  intents: [Intents.Flags.Guilds, Intents.Flags.Guild_Messages],
+  intents: [Intents.guilds, Intents.guildMessages],
   shards: "auto",
+  presence: {
+    activities: [],
+    status: Status.DoNotDisturb,
+  },
 });
 
 client.once("ready", (r) => {
@@ -24,10 +28,6 @@ client.on("shardReconnecting", (shardId) => {
 
 client.on("shardError", ({ id, error }) => {
   console.error(`Error in shard ${id}:`, error);
-});
-
-client.on("shardingReady", () => {
-  console.log(`All shards (${client.totalShards}) are ready`);
 });
 
 client
