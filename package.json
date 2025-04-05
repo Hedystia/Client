@@ -1,9 +1,15 @@
 {
   "workspaces": ["Package", "Tests"],
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4"
+    "@biomejs/biome": "^1.9.4",
+    "concurrently": "^9.1.2"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "build": "bun run --cwd Package build",
+    "dev": "concurrently \"bun run --cwd Package dev\" \"bun run --cwd Tests dev\"",
+    "start": "bun run --cwd Package build && bun run --cwd Tests start"
   }
 }
