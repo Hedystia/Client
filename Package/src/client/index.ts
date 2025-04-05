@@ -1,117 +1,103 @@
 import REST from "@/rest";
-import { OpCodes, Status } from "@/utils/constants";
-import WebSocketManager from "@/ws";
-import ShardManager from "./ShardManager";
 import EventEmitter from "node:events";
-import Intents from "@/utils/intents";
+import type Intents from "@/utils/intents";
 import type { ClientEvents } from "@/types/ClientEvents";
-import type { APIUser } from "discord-api-types/v10";
+import {
+  PresenceUpdateStatus,
+  type ActivityType,
+  type APIGatewayBotInfo,
+  type APIUser,
+  type PresenceUpdateReceiveStatus,
+} from "discord-api-types/v10";
+import type { ClientOptions as WebSocketOptions } from "ws";
+import ShardManager from "./ShardManager";
+import { Routes } from "@/utils/constants";
 
 export interface ClientOptions {
   token: string;
-  intents: number | number[];
+  intents?: number | Array<number>;
   presence?: {
-    activities: unknown[];
-    status: string;
-    since: number | null;
-    afk: boolean;
+    activities: Activities[];
+    status: PresenceUpdateReceiveStatus;
   };
   shards?: number | number[] | "auto";
   shardCount?: number;
+  ws?: WebSocketOptions;
+  compress?: boolean;
+  largeThreshold?: number;
+  shardsCount?: number | "auto";
+}
+
+interface Activities {
+  name: string;
+  type: ActivityType;
+  url?: string;
+  state?: string;
 }
 
 export default class Client extends EventEmitter<ClientEvents> {
   token: string;
-  intents: number;
+  intents: Intents | number;
   rest: REST;
-  api: REST;
   presence: {
-    activities: unknown[];
-    status: string;
-    since: number | null;
-    afk: boolean;
+    activities: Activities[];
+    status: PresenceUpdateReceiveStatus;
   };
-  ws: WebSocketManager;
-  shardManager: ShardManager;
   readyAt!: Date;
-  useSharding: boolean;
   me?: APIUser;
+  ws?: WebSocketOptions;
+  compress?: boolean;
+  largeThreshold?: number;
+  shardsCount: number | "auto";
+  shards: Map<number, ShardManager>;
 
   constructor(options: ClientOptions) {
     super();
+
     this.token = `Bot ${options.token}`;
-    if (Array.isArray(options.intents)) {
-      this.intents = new Intents().convert(options.intents);
-    } else {
-      this.intents = options.intents;
-    }
+
+    this.intents =
+      options.intents !== undefined
+        ? Array.isArray(options.intents)
+          ? options.intents.reduce((sum, num) => sum + num, 0)
+          : options.intents
+        : 0;
+
+    this.compress = options.compress;
+    this.largeThreshold = options.largeThreshold;
+    this.shardsCount = options.shardsCount ?? "auto";
+
+    this.shards = new Map();
+
     this.rest = new REST({
       token: this.token,
       version: 10,
       restRequestTimeout: 10000,
     });
-    this.api = this.rest;
+
     this.presence = {
       activities: [...(options.presence?.activities ?? [])],
-      status: options.presence?.status ?? Status.Online,
-      since: options.presence?.since ?? null,
-      afk: options.presence?.afk ?? false,
+      status: options.presence?.status ?? PresenceUpdateStatus.Online,
     };
 
-    this.ws = new WebSocketManager(this);
-
-    this.useSharding = options.shards !== undefined;
-    this.shardManager = new ShardManager(this, {
-      autoShards: options.shards === "auto",
-      shardCount: typeof options.shards === "number" ? options.shards : (options.shardCount ?? 1),
-    });
-
-    this.setupShardEvents();
+    this.ws = options?.ws;
   }
 
-  login(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      try {
-        if (this.useSharding) {
-          this.shardManager.spawn().catch(reject);
-          this.once("shardingReady", () => {
-            this.readyAt = new Date();
-            resolve(this.token);
-          });
-        } else {
-          this.ws.connect();
-          this.ws.once("ready", () => {
-            this.readyAt = new Date();
-            resolve(this.token);
-          });
-          this.ws.once("error", reject);
-        }
-      } catch (error) {
-        reject(error);
-      }
-    });
+  /**
+   * Logs in to the gateway
+   * @link https://discord.com/developers/docs/topics/gateway#connecting
+   */
+  async login(): Promise<void> {
+    this.shardsCount =
+      this.shardsCount === "auto" ? (await this.getGatewayBot()).shards : this.shardsCount;
+
+    for (let i = 0; i < this.shardsCount; i++) this.shards.set(i, new ShardManager(i, this));
+
+    for (const [_, shard] of this.shards) shard.connect();
   }
 
-  private setupShardEvents(): void {
-    this.shardManager.on("shardReady", (id: number) => {
-      this.emit("shardReady", id);
-    });
-
-    this.shardManager.on("shardDisconnect", (data: { id: number; code: number }) => {
-      this.emit("shardDisconnect", data);
-    });
-
-    this.shardManager.on("shardReconnecting", (id: number) => {
-      this.emit("shardReconnecting", id);
-    });
-
-    this.shardManager.on("shardError", (data: { id: number; error: Error }) => {
-      this.emit("shardError", data);
-    });
-
-    this.shardManager.on("shardResume", (id: number) => {
-      this.emit("shardResume", id);
-    });
+  disconnect(): void {
+    for (const [_, shard] of this.shards) shard.disconnect();
   }
 
   get uptime(): number {
@@ -128,61 +114,26 @@ export default class Client extends EventEmitter<ClientEvents> {
     return this.readyAt.getTime();
   }
 
-  setPresence(options: {
-    activities: unknown[];
-    status: string;
-    since: number | null;
-    afk: boolean;
-  }): void {
-    this.presence = {
-      activities: [...options.activities],
-      status: options.status,
-      since: options.since,
-      afk: options.afk,
+  async getGatewayBot(): Promise<{
+    url: string;
+    shards: number;
+    sessionStartLimit: {
+      total: number;
+      remaining: number;
+      resetAfter: number;
+      maxConcurrency: number;
     };
-
-    const data = {
-      op: OpCodes.Presence_Update,
-      d: {
-        activities: [...options.activities],
-        status: options.status,
-        afk: options.afk,
-        since: options.since,
+  }> {
+    const response = (await this.rest.get(Routes.gatewayBot())) as APIGatewayBotInfo;
+    return {
+      url: response.url,
+      shards: response.shards,
+      sessionStartLimit: {
+        total: response.session_start_limit.total,
+        remaining: response.session_start_limit.remaining,
+        resetAfter: response.session_start_limit.reset_after,
+        maxConcurrency: response.session_start_limit.max_concurrency,
       },
     };
-
-    if (this.useSharding) {
-      this.shardManager.broadcastEval(data);
-    } else {
-      this.ws.send(data);
-    }
-  }
-
-  getShard(id: number): WebSocketManager | undefined {
-    return this.shardManager.shards.get(id);
-  }
-
-  broadcastEval(data: object): void {
-    if (this.useSharding) {
-      this.shardManager.broadcastEval(data);
-    } else {
-      this.ws.send(data);
-    }
-  }
-
-  sendToShard(shardId: number, data: object): void {
-    if (this.useSharding) {
-      this.shardManager.sendToShard(shardId, data);
-    } else if (shardId === 0) {
-      this.ws.send(data);
-    }
-  }
-
-  get totalShards(): number {
-    return this.useSharding ? this.shardManager.shardCount : 1;
-  }
-
-  get connectedShards(): number {
-    return this.useSharding ? this.shardManager.connectedShards : this.ws.isReady ? 1 : 0;
   }
 }
