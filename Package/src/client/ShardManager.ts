@@ -501,6 +501,7 @@ export default class ShardManager {
       case GatewayOpcodes.Reconnect:
         this.client.emit("reconnect");
         this.client.emit("shardReconnecting", this.id);
+        this.disconnect();
         this.connect();
         break;
       case GatewayOpcodes.InvalidSession:
@@ -563,6 +564,7 @@ export default class ShardManager {
 
     if (this.shouldReconnect(code)) {
       this.client.emit("shardReconnecting", this.id);
+      this.disconnect();
       this.connect();
       return;
     }
