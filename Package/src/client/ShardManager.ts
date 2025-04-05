@@ -96,6 +96,9 @@ export default class ShardManager {
   ws: WebSocket;
   sessionId: string | null;
   resumeGatewayUrl: string | null;
+  ping = 0;
+  lastHeartbeat = 0;
+  lastHeartbeatAck = 0;
 
   /**
    * Creates a new ShardManager
@@ -497,6 +500,8 @@ export default class ShardManager {
         break;
       case GatewayOpcodes.Reconnect:
         this.client.emit("reconnect");
+        this.client.emit("shardReconnecting", this.id);
+        this.connect();
         break;
       case GatewayOpcodes.InvalidSession:
         this.client.emit("invalidSession");
@@ -512,7 +517,14 @@ export default class ShardManager {
         }
         break;
       case GatewayOpcodes.HeartbeatAck:
+        this.lastHeartbeatAck = Date.now();
         this.client.emit("heartbeatACK", this.id);
+        this.ping = this.lastHeartbeatAck - this.lastHeartbeat;
+        break;
+
+      case GatewayOpcodes.Heartbeat:
+        this.client.emit("heartbeat", this.id);
+        this.lastHeartbeat = Date.now();
         break;
     }
   }
