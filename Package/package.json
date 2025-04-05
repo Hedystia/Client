@@ -1,12 +1,46 @@
 {
-  "name": "hedystia.ts",
-  "module": "src/index.ts",
-  "type": "module",
+  "name": "@hedystia/discord",
   "version": "0.0.1",
-  "devDependencies": {
-    "@types/bun": "latest"
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zastinian/hedystia.ts.git"
   },
-  "dependencies": {
-    "discord-api-types": "^0.37.119"
+  "bugs": {
+    "url": "https://github.com/Zastinian/hedystia.ts/issues"
+  },
+  "homepage": "https://github.com/Zastinian/hedystia.ts",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "discord-api-types": "^0.37.119",
+    "tsup": "^8.4.0"
+  },
+  "files": ["dist"],
+  "keywords": ["discord", "api", "client", "typescript", "websocket", "ws", "bun"],
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "ws": "^8.18.1"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
   }
 }
