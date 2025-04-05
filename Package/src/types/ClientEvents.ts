@@ -47,8 +47,7 @@ import type {
   GatewayMessageCreateDispatchData,
   GatewayMessageDeleteDispatchData,
   GatewayMessageDeleteBulkDispatchData,
-  GatewayMessagePollVoteAddDispatchData,
-  GatewayMessagePollVoteRemoveDispatchData,
+  GatewayMessagePollVoteDispatchData,
   GatewayMessageReactionAddDispatchData,
   GatewayMessageReactionRemoveDispatchData,
   GatewayMessageReactionRemoveAllDispatchData,
@@ -56,7 +55,6 @@ import type {
   GatewayMessageUpdateDispatchData,
   GatewayPresenceUpdateDispatchData,
   GatewayReadyDispatchData,
-  GatewayResumedDispatchData,
   GatewayStageInstanceCreateDispatchData,
   GatewayStageInstanceDeleteDispatchData,
   GatewayStageInstanceUpdateDispatchData,
@@ -75,6 +73,7 @@ import type {
   GatewayVoiceServerUpdateDispatchData,
   GatewayVoiceStateUpdateDispatchData,
   GatewayWebhooksUpdateDispatchData,
+  GatewayDispatchPayload,
 } from "discord-api-types/v10";
 
 export interface ClientEvents {
@@ -144,8 +143,8 @@ export interface ClientEvents {
   messageCreate: [GatewayMessageCreateDispatchData];
   messageDelete: [GatewayMessageDeleteDispatchData];
   messageDeleteBulk: [GatewayMessageDeleteBulkDispatchData];
-  messagePollVoteAdd: [GatewayMessagePollVoteAddDispatchData];
-  messagePollVoteRemove: [GatewayMessagePollVoteRemoveDispatchData];
+  messagePollVoteAdd: [GatewayMessagePollVoteDispatchData];
+  messagePollVoteRemove: [GatewayMessagePollVoteDispatchData];
   messageReactionAdd: [GatewayMessageReactionAddDispatchData];
   messageReactionRemove: [GatewayMessageReactionRemoveDispatchData];
   messageReactionRemoveAll: [GatewayMessageReactionRemoveAllDispatchData];
@@ -159,7 +158,7 @@ export interface ClientEvents {
   ready: [GatewayReadyDispatchData];
 
   // RESUMED
-  resumed: [GatewayResumedDispatchData];
+  resumed: [];
 
   // STAGE
   stageInstanceCreate: [GatewayStageInstanceCreateDispatchData];
@@ -193,13 +192,18 @@ export interface ClientEvents {
   // WEBHOOK
   webhooksUpdate: [GatewayWebhooksUpdateDispatchData];
 
+  // DISPATCH
+  dispatch: [GatewayDispatchPayload, number];
+  hello: [number, number];
+  heartbeatACK: [number];
+  invalidSession: [];
+  reconnect: [];
+
   // Sharding Events
   shardReady: [number];
   shardDisconnect: [{ id: number; code: number }];
   shardReconnecting: [number];
   shardError: [{ id: number; error: Error }];
-  shardResume: [number];
-  shardingReady: [];
 }
 
 export default class Client extends EventEmitter {
