@@ -1,23 +1,14 @@
 import type Client from "@/client";
-import type { GatewayResumedDispatchData } from "discord-api-types/v10";
 
 export default class Resumed {
   client: Client;
 
-  constructor(
-    client: Client,
-    data: {
-      d: GatewayResumedDispatchData;
-    },
-  ) {
+  constructor(client: Client) {
     this.client = client;
-    this._patch(data);
+    this._patch();
   }
 
-  async _patch(data: {
-    d: GatewayResumedDispatchData;
-  }): Promise<void> {
-    const packet = data.d;
-    this.client.emit("resumed", packet);
+  async _patch(): Promise<void> {
+    this.client.emit("resumed");
   }
 }
