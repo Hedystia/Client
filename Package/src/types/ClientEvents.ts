@@ -196,6 +196,7 @@ export interface ClientEvents {
   dispatch: [GatewayDispatchPayload, number];
   hello: [number, number];
   heartbeatACK: [number];
+  heartbeat: [number];
   invalidSession: [];
   reconnect: [];
 
