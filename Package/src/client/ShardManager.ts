@@ -1,129 +1,625 @@
 import type Client from "@/client";
-import WebSocketManager from "@/ws";
-import { EventEmitter } from "node:events";
+import { GatewayError } from "@/errors/Gateway";
+import type { Identify, Presence } from "@/types/Gateway";
+import {
+  ActivityType,
+  GatewayDispatchEvents,
+  GatewayOpcodes,
+  PresenceUpdateStatus,
+  type GatewayDispatchPayload,
+  type GatewayReceivePayload,
+  type GatewayVoiceStateUpdateData,
+} from "discord-api-types/v10";
+import WebSocket, { type RawData } from "ws";
 
-export interface ShardManagerOptions {
-  shardCount?: number;
-  autoShards?: boolean;
-}
+// Events
+import ApplicationCommandPermissionsUpdate from "@/events/applicationCommandPermissionsUpdate";
+import AutoModerationActionExecution from "@/events/autoModerationActionExecution";
+import AutoModerationRuleCreate from "@/events/autoModerationRuleCreate";
+import AutoModerationRuleDelete from "@/events/autoModerationRuleDelete";
+import AutoModerationRuleUpdate from "@/events/autoModerationRuleUpdate";
+import ChannelCreate from "@/events/channelCreate";
+import ChannelDelete from "@/events/channelDelete";
+import ChannelPinsUpdate from "@/events/channelPinsUpdate";
+import ChannelUpdate from "@/events/channelUpdate";
+import EntitlementCreate from "@/events/entitlementCreate";
+import EntitlementDelete from "@/events/entitlementDelete";
+import EntitlementUpdate from "@/events/entitlementUpdate";
+import GuildAuditLogEntryCreate from "@/events/guildAuditLogEntryCreate";
+import GuildBanAdd from "@/events/guildBanAdd";
+import GuildBanRemove from "@/events/guildBanRemove";
+import GuildCreate from "@/events/guildCreate";
+import GuildDelete from "@/events/guildDelete";
+import GuildEmojisUpdate from "@/events/guildEmojisUpdate";
+import GuildIntegrationsUpdate from "@/events/guildIntegrationsUpdate";
+import GuildMemberAdd from "@/events/guildMemberAdd";
+import GuildMemberRemove from "@/events/guildMemberRemove";
+import GuildMembersChunk from "@/events/guildMembersChunk";
+import GuildMemberUpdate from "@/events/guildMemberUpdate";
+import GuildRoleCreate from "@/events/guildRoleCreate";
+import GuildRoleDelete from "@/events/guildRoleDelete";
+import GuildRoleUpdate from "@/events/guildRoleUpdate";
+import GuildScheduledEventCreate from "@/events/guildScheduledEventCreate";
+import GuildScheduledEventDelete from "@/events/guildScheduledEventDelete";
+import GuildScheduledEventUpdate from "@/events/guildScheduledEventUpdate";
+import GuildScheduledEventUserAdd from "@/events/guildScheduledEventUserAdd";
+import GuildScheduledEventUserRemove from "@/events/guildScheduledEventUserRemove";
+import GuildSoundboardSoundCreate from "@/events/guildSoundboardSoundCreate";
+import GuildSoundboardSoundDelete from "@/events/guildSoundboardSoundDelete";
+import GuildSoundboardSoundsUpdate from "@/events/guildSoundboardSoundsUpdate";
+import GuildSoundboardSoundUpdate from "@/events/guildSoundboardSoundUpdate";
+import SoundboardSounds from "@/events/soundboardSounds";
+import GuildStickersUpdate from "@/events/guildStickersUpdate";
+import GuildUpdate from "@/events/guildUpdate";
+import IntegrationCreate from "@/events/integrationCreate";
+import IntegrationDelete from "@/events/integrationDelete";
+import IntegrationUpdate from "@/events/integrationUpdate";
+import InteractionCreate from "@/events/interactionCreate";
+import InviteCreate from "@/events/inviteCreate";
+import InviteDelete from "@/events/inviteDelete";
+import MessageCreate from "@/events/messageCreate";
+import MessageDelete from "@/events/messageDelete";
+import MessageDeleteBulk from "@/events/messageDeleteBulk";
+import MessagePollVoteAdd from "@/events/messagePollVoteAdd";
+import MessagePollVoteRemove from "@/events/messagePollVoteRemove";
+import MessageReactionAdd from "@/events/messageReactionAdd";
+import MessageReactionRemove from "@/events/messageReactionRemove";
+import MessageReactionRemoveAll from "@/events/messageReactionRemoveAll";
+import MessageReactionRemoveEmoji from "@/events/messageReactionRemoveEmoji";
+import MessageUpdate from "@/events/messageUpdate";
+import PresenceUpdate from "@/events/presenceUpdate";
+import Ready from "@/events/ready";
+import Resumed from "@/events/resumed";
+import StageInstanceCreate from "@/events/stageInstanceCreate";
+import StageInstanceDelete from "@/events/stageInstanceDelete";
+import StageInstanceUpdate from "@/events/stageInstanceUpdate";
+import SubscriptionCreate from "@/events/subscriptionCreate";
+import SubscriptionDelete from "@/events/subscriptionDelete";
+import SubscriptionUpdate from "@/events/subscriptionUpdate";
+import ThreadCreate from "@/events/threadCreate";
+import ThreadDelete from "@/events/threadDelete";
+import ThreadListSync from "@/events/threadListSync";
+import ThreadMembersUpdate from "@/events/threadMembersUpdate";
+import ThreadMemberUpdate from "@/events/threadMemberUpdate";
+import ThreadUpdate from "@/events/threadUpdate";
+import TypingStart from "@/events/typingStart";
+import UserUpdate from "@/events/userUpdate";
+import VoiceChannelEffectSend from "@/events/voiceChannelEffectSend";
+import VoiceServerUpdate from "@/events/voiceServerUpdate";
+import VoiceStateUpdate from "@/events/voiceStateUpdate";
+import WebhooksUpdate from "@/events/webhooksUpdate";
 
-export default class ShardManager extends EventEmitter {
+export default class ShardManager {
+  id: number;
+  private heartbeatInterval: NodeJS.Timer | null;
   client: Client;
-  shards: Map<number, WebSocketManager> = new Map();
-  shardCount: number;
-  autoShards: boolean;
-  readyShards: Set<number> = new Set();
+  ws: WebSocket;
+  sessionId: string | null;
+  resumeGatewayUrl: string | null;
 
-  constructor(client: Client, options: ShardManagerOptions = {}) {
-    super();
+  /**
+   * Creates a new ShardManager
+   * @param {number} id The shard's id
+   * @param {Client} client The client
+   */
+  constructor(id: number, client: Client) {
+    this.id = id;
+    this.heartbeatInterval = null;
     this.client = client;
-    this.autoShards = options.autoShards ?? false;
-    this.shardCount = options.shardCount ?? 1;
+    this.ws = new WebSocket("wss://gateway.discord.gg/?v=10&encoding=json", client.ws);
+    this.sessionId = null;
+    this.resumeGatewayUrl = null;
   }
 
-  async spawn(): Promise<void> {
-    if (this.autoShards) {
-      await this.fetchRecommendedShards();
-    }
+  /**
+   * Connects to the gateway
+   * @link https://discord.com/developers/docs/topics/gateway#connections
+   */
+  public connect(): void {
+    this.ws.on("open", () => this.onWebSocketOpen());
+    this.ws.on("message", (data) => this.onWebSocketMessage(data));
+    this.ws.on("error", (err) => this.onWebSocketError(err));
+    this.ws.on("close", (code, reason) => this.onWebSocketClose(code, reason));
+  }
 
-    for (let i = 0; i < this.shardCount; i++) {
-      await this.createShard(i);
-      if (i < this.shardCount - 1) await this.wait(5000);
+  /**
+   * Disconnects from the gateway
+   * @link https://discord.com/developers/docs/topics/gateway#connections
+   */
+  public disconnect(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+
+      this.heartbeatInterval = null;
     }
   }
 
-  async createShard(id: number): Promise<WebSocketManager> {
-    const shard = new WebSocketManager(this.client, id, this.shardCount);
-    this.shards.set(id, shard);
+  /**
+   * Heartbeats the gateway
+   * @param {number | null} lastSequence The last sequence number
+   * @link https://discord.com/developers/docs/topics/gateway-events#heartbeat
+   */
+  public heartbeat(lastSequence: number | null): void {
+    this.ws.send(
+      JSON.stringify({
+        op: GatewayOpcodes.Heartbeat,
+        d: lastSequence,
+      }),
+    );
+  }
 
-    shard.on("ready", () => {
-      this.readyShards.add(id);
-      this.client.emit("shardReady", id);
+  /**
+   * Sends an identify packet to the gateway
+   * @param {Identify} options The options to send
+   * @link https://discord.com/developers/docs/topics/gateway#identify
+   */
+  public identify(options: Identify): void {
+    this.ws.send(
+      JSON.stringify({
+        op: GatewayOpcodes.Identify,
+        d: {
+          token: options.token,
+          properties: {
+            os: options.properties.os,
+            browser: options.properties.browser,
+            device: options.properties.device,
+          },
+          compress: options.compress,
+          large_threshold: options.largeThreshold,
+          shard: options.shard,
+          presence: options.presence,
+          intents: options.intents,
+        },
+      }),
+    );
+  }
 
-      if (this.readyShards.size === this.shardCount) {
-        this.client.emit("shardingReady");
-      }
+  /**
+   * Sends a heartbeat to the gateway
+   * @param {GatewayDispatchPayload} packet The packet data
+   */
+  private onDispatch(packet: GatewayDispatchPayload): void {
+    this.client.emit("dispatch", packet, this.id);
+
+    switch (packet.t) {
+      // APPLICATION
+      case GatewayDispatchEvents.ApplicationCommandPermissionsUpdate:
+        new ApplicationCommandPermissionsUpdate(this.client, packet);
+        break;
+
+      // AUTO MODERATION
+      case GatewayDispatchEvents.AutoModerationActionExecution:
+        new AutoModerationActionExecution(this.client, packet);
+        break;
+      case GatewayDispatchEvents.AutoModerationRuleCreate:
+        new AutoModerationRuleCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.AutoModerationRuleDelete:
+        new AutoModerationRuleDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.AutoModerationRuleUpdate:
+        new AutoModerationRuleUpdate(this.client, packet);
+        break;
+
+      // CHANNEL
+      case GatewayDispatchEvents.ChannelCreate:
+        new ChannelCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ChannelDelete:
+        new ChannelDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ChannelPinsUpdate:
+        new ChannelPinsUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ChannelUpdate:
+        new ChannelUpdate(this.client, packet);
+        break;
+
+      // ENTITLEMENT
+      case GatewayDispatchEvents.EntitlementCreate:
+        new EntitlementCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.EntitlementDelete:
+        new EntitlementDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.EntitlementUpdate:
+        new EntitlementUpdate(this.client, packet);
+        break;
+
+      // GUILD
+      case GatewayDispatchEvents.GuildAuditLogEntryCreate:
+        new GuildAuditLogEntryCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildBanAdd:
+        new GuildBanAdd(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildBanRemove:
+        new GuildBanRemove(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildCreate:
+        new GuildCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildDelete:
+        new GuildDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildEmojisUpdate:
+        new GuildEmojisUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildIntegrationsUpdate:
+        new GuildIntegrationsUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildMemberAdd:
+        new GuildMemberAdd(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildMemberRemove:
+        new GuildMemberRemove(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildMembersChunk:
+        new GuildMembersChunk(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildMemberUpdate:
+        new GuildMemberUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildRoleCreate:
+        new GuildRoleCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildRoleDelete:
+        new GuildRoleDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildRoleUpdate:
+        new GuildRoleUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildScheduledEventCreate:
+        new GuildScheduledEventCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildScheduledEventDelete:
+        new GuildScheduledEventDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildScheduledEventUpdate:
+        new GuildScheduledEventUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildScheduledEventUserAdd:
+        new GuildScheduledEventUserAdd(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildScheduledEventUserRemove:
+        new GuildScheduledEventUserRemove(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildSoundboardSoundCreate:
+        new GuildSoundboardSoundCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildSoundboardSoundDelete:
+        new GuildSoundboardSoundDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildSoundboardSoundsUpdate:
+        new GuildSoundboardSoundsUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildSoundboardSoundUpdate:
+        new GuildSoundboardSoundUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildStickersUpdate:
+        new GuildStickersUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.GuildUpdate:
+        new GuildUpdate(this.client, packet);
+        break;
+
+      // SOUNDBOARD
+      case GatewayDispatchEvents.SoundboardSounds:
+        new SoundboardSounds(this.client, packet);
+        break;
+
+      // INTEGRATION
+      case GatewayDispatchEvents.IntegrationCreate:
+        new IntegrationCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.IntegrationDelete:
+        new IntegrationDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.IntegrationUpdate:
+        new IntegrationUpdate(this.client, packet);
+        break;
+
+      // INTERACTION
+      case GatewayDispatchEvents.InteractionCreate:
+        new InteractionCreate(this.client, packet);
+        break;
+
+      // INVITE
+      case GatewayDispatchEvents.InviteCreate:
+        new InviteCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.InviteDelete:
+        new InviteDelete(this.client, packet);
+        break;
+
+      // MESSAGE
+      case GatewayDispatchEvents.MessageCreate:
+        new MessageCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageDelete:
+        new MessageDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageDeleteBulk:
+        new MessageDeleteBulk(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessagePollVoteAdd:
+        new MessagePollVoteAdd(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessagePollVoteRemove:
+        new MessagePollVoteRemove(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageReactionAdd:
+        new MessageReactionAdd(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageReactionRemove:
+        new MessageReactionRemove(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageReactionRemoveAll:
+        new MessageReactionRemoveAll(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageReactionRemoveEmoji:
+        new MessageReactionRemoveEmoji(this.client, packet);
+        break;
+      case GatewayDispatchEvents.MessageUpdate:
+        new MessageUpdate(this.client, packet);
+        break;
+
+      // PRESENCE
+      case GatewayDispatchEvents.PresenceUpdate:
+        new PresenceUpdate(this.client, packet);
+        break;
+
+      // READY
+      case GatewayDispatchEvents.Ready:
+        {
+          this.client.emit("shardReady", this.id);
+          this.sessionId = packet.d.session_id;
+          this.resumeGatewayUrl = packet.d.resume_gateway_url;
+          new Ready(this.client, packet);
+        }
+        break;
+
+      // RESUMED
+      case GatewayDispatchEvents.Resumed:
+        new Resumed(this.client);
+        break;
+
+      // STAGE
+      case GatewayDispatchEvents.StageInstanceCreate:
+        new StageInstanceCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.StageInstanceDelete:
+        new StageInstanceDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.StageInstanceUpdate:
+        new StageInstanceUpdate(this.client, packet);
+        break;
+
+      // SUBSCRIPTION
+      case GatewayDispatchEvents.SubscriptionCreate:
+        new SubscriptionCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.SubscriptionDelete:
+        new SubscriptionDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.SubscriptionUpdate:
+        new SubscriptionUpdate(this.client, packet);
+        break;
+
+      // THREAD
+      case GatewayDispatchEvents.ThreadCreate:
+        new ThreadCreate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ThreadDelete:
+        new ThreadDelete(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ThreadListSync:
+        new ThreadListSync(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ThreadMembersUpdate:
+        new ThreadMembersUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ThreadMemberUpdate:
+        new ThreadMemberUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.ThreadUpdate:
+        new ThreadUpdate(this.client, packet);
+        break;
+
+      // TYPING
+      case GatewayDispatchEvents.TypingStart:
+        new TypingStart(this.client, packet);
+        break;
+
+      // USER
+      case GatewayDispatchEvents.UserUpdate:
+        new UserUpdate(this.client, packet);
+        break;
+
+      // VOICE
+      case GatewayDispatchEvents.VoiceChannelEffectSend:
+        new VoiceChannelEffectSend(this.client, packet);
+        break;
+      case GatewayDispatchEvents.VoiceServerUpdate:
+        new VoiceServerUpdate(this.client, packet);
+        break;
+      case GatewayDispatchEvents.VoiceStateUpdate:
+        new VoiceStateUpdate(this.client, packet);
+        break;
+
+      // WEBHOOK
+      case GatewayDispatchEvents.WebhooksUpdate:
+        new WebhooksUpdate(this.client, packet);
+        break;
+    }
+  }
+
+  /**
+   * Opens the websocket connection
+   */
+  private onWebSocketOpen(): void {
+    this.identify({
+      token: this.client.token,
+      properties: {
+        os: process.platform,
+        browser: "hedystia.js",
+        device: "hedystia.js",
+      },
+      compress: this.client.compress,
+      largeThreshold: this.client.largeThreshold,
+      shard: [this.id, this.client.shardsCount as number],
+      presence:
+        this.client.presence !== undefined
+          ? {
+              activities: this.client.presence.activities?.map((activity) => ({
+                name: activity.type === ActivityType.Custom ? "Custom Status" : activity.name,
+                type: activity.type,
+                url: activity.url,
+                state: activity.state,
+              })),
+              status: this.client.presence.status ?? PresenceUpdateStatus.Online,
+            }
+          : undefined,
+      intents: this.client.intents,
     });
-
-    shard.on("close", (code: number) => {
-      this.readyShards.delete(id);
-      this.client.emit("shardDisconnect", { id, code });
-      if (code !== 1000) {
-        this.client.emit("shardReconnecting", id);
-        setTimeout(() => this.reconnectShard(id), 5000);
-      }
-    });
-
-    shard.on("error", (error: Error) => {
-      this.client.emit("shardError", { id, error });
-    });
-
-    shard.on("resume", () => {
-      this.readyShards.add(id);
-      this.client.emit("shardResume", id);
-    });
-
-    try {
-      await shard.connect();
-    } catch (error) {
-      this.client.emit("shardError", {
-        id,
-        error: error instanceof Error ? error : new Error(String(error)),
-      });
-      throw error;
-    }
-
-    return shard;
   }
 
-  async reconnectShard(id: number): Promise<void> {
-    try {
-      const shard = this.shards.get(id);
-      if (!shard) {
-        await this.createShard(id);
-        return;
-      }
-      await shard.connect();
-    } catch (error: unknown) {
-      const typedError = error instanceof Error ? error : new Error(String(error));
-      this.client.emit("shardError", { id, error: typedError });
-      setTimeout(() => this.reconnectShard(id), 15000);
+  /**
+   * Handles incoming messages from the websocket
+   * @param {RawData} data The raw data received from the websocket
+   */
+  private onWebSocketMessage(data: RawData): void {
+    const packet = JSON.parse(data.toString()) as GatewayReceivePayload;
+
+    switch (packet.op) {
+      case GatewayOpcodes.Dispatch:
+        this.onDispatch(packet);
+        break;
+      case GatewayOpcodes.Reconnect:
+        this.client.emit("reconnect");
+        break;
+      case GatewayOpcodes.InvalidSession:
+        this.client.emit("invalidSession");
+        break;
+      case GatewayOpcodes.Hello:
+        {
+          this.heartbeatInterval = setInterval(
+            () => this.heartbeat(null),
+            packet.d.heartbeat_interval,
+          );
+
+          this.client.emit("hello", packet.d.heartbeat_interval, this.id);
+        }
+        break;
+      case GatewayOpcodes.HeartbeatAck:
+        this.client.emit("heartbeatACK", this.id);
+        break;
     }
   }
 
-  async fetchRecommendedShards(): Promise<void> {
-    try {
-      const data = await this.client.rest.get<{ shards: number }>("/gateway/bot");
-      if (data?.shards) {
-        this.shardCount = data.shards;
-      }
-    } catch (error) {
-      throw new Error(`Failed to fetch recommended shards: ${error}`);
+  shouldReconnect(code: number): boolean {
+    const reconnectableCodes = new Set([
+      5000, // OAuth2 error
+      5001, // Select channel timed out
+      5002, // GET_GUILD timed out
+      5003, // Select voice force required
+      5004, // Capture shortcut already listening
+    ]);
+
+    return reconnectableCodes.has(code);
+  }
+
+  /**
+   * Handles errors from the websocket
+   * @param {Error} err The error received from the websocket
+   */
+  private onWebSocketError(err: Error): void {
+    this.client.emit("shardError", { id: this.id, error: err });
+
+    throw err;
+  }
+
+  /**
+   * Handles closing from the websocket
+   * @param {number} code The code received from the websocket
+   * @param {Buffer} reason The reason received from the websocket
+   */
+  private onWebSocketClose(code: number, reason: Buffer): void {
+    if (code === 1000) return;
+
+    this.client.emit("shardDisconnect", { id: this.id, code });
+
+    if (this.shouldReconnect(code)) {
+      this.client.emit("shardReconnecting", this.id);
+      this.connect();
+      return;
     }
+
+    throw new GatewayError(code, reason.toString());
   }
 
-  broadcastEval(data: object): void {
-    for (const [, shard] of this.shards) {
-      shard.send(data);
-    }
+  /**
+   * Resumes the session
+   * @param {string} options.token The token to resume with
+   * @param {string} options.sessionId The session ID to resume with
+   * @param {number} options.seq The sequence number to resume with
+   * @link https://discord.com/developers/docs/topics/gateway#resume
+   */
+  resume(options: {
+    token: string;
+    sessionId: string;
+    seq: number;
+  }): void {
+    this.ws.send(
+      JSON.stringify({
+        op: GatewayOpcodes.Resume,
+        d: {
+          token: options.token,
+          session_id: options.sessionId,
+          seq: options.seq,
+        },
+      }),
+    );
   }
 
-  sendToShard(shardId: number, data: object): void {
-    const shard = this.shards.get(shardId);
-    if (shard) {
-      shard.send(data);
-    }
+  /**
+   * Updates the presence of the bot
+   * @param {Partial<Pick<Presence, "activities" | "status">>} options The options to update the presence with
+   * @link https://discord.com/developers/docs/topics/gateway#update-presence
+   */
+  updatePresence(options: Partial<Pick<Presence, "activities" | "status">>): void {
+    this.ws.send(
+      JSON.stringify({
+        op: GatewayOpcodes.PresenceUpdate,
+        d: {
+          activities: options.activities?.map((activity) => ({
+            name: activity.type === ActivityType.Custom ? "Custom Status" : activity.name,
+            type: activity.type,
+            url: activity.url,
+            state: activity.state,
+          })),
+          status: options.status ?? PresenceUpdateStatus.Online,
+        },
+      }),
+    );
   }
 
-  get connectedShards(): number {
-    return this.readyShards.size;
-  }
-
-  get allShardsReady(): boolean {
-    return this.readyShards.size === this.shardCount;
-  }
-
-  private wait(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  /**
+   * Updates the voice state of the bot
+   * @param {GatewayVoiceStateUpdateData} options The options to update the voice state with
+   * @link https://discord.com/developers/docs/topics/gateway#update-voice-state
+   */
+  updateVoiceState(options: GatewayVoiceStateUpdateData): void {
+    this.ws.send(
+      JSON.stringify({
+        op: GatewayOpcodes.VoiceStateUpdate,
+        d: {
+          guild_id: options.guild_id,
+          channel_id: options.channel_id,
+          self_mute: options.self_mute,
+          self_deaf: options.self_deaf,
+        },
+      }),
+    );
   }
 }
