@@ -1,5 +1,5 @@
 import type Client from "@/client";
-import type { GatewayMessagePollVoteRemoveDispatchData } from "discord-api-types/v10";
+import type { GatewayMessagePollVoteDispatchData } from "discord-api-types/v10";
 
 export default class MessagePollVoteRemove {
   client: Client;
@@ -7,7 +7,7 @@ export default class MessagePollVoteRemove {
   constructor(
     client: Client,
     data: {
-      d: GatewayMessagePollVoteRemoveDispatchData;
+      d: GatewayMessagePollVoteDispatchData;
     },
   ) {
     this.client = client;
@@ -15,7 +15,7 @@ export default class MessagePollVoteRemove {
   }
 
   async _patch(data: {
-    d: GatewayMessagePollVoteRemoveDispatchData;
+    d: GatewayMessagePollVoteDispatchData;
   }): Promise<void> {
     const packet = data.d;
     this.client.emit("messagePollVoteRemove", packet);
