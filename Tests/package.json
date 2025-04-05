@@ -2,5 +2,9 @@
   "private": true,
   "name": "test",
   "type": "module",
-  "version": "0.0.1"
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.js"
+  }
 }

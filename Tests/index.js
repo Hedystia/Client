@@ -1,4 +1,4 @@
-import { Client, Intents, Status } from "../Package/src/index";
+import { Client, Intents, Status } from "../Package/dist/index.js";
 import config from "./config.test";
 
 const client = new Client({
