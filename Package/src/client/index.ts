@@ -12,6 +12,7 @@ import {
 import type { ClientOptions as WebSocketOptions } from "ws";
 import ShardManager from "./ShardManager";
 import { Routes } from "@/utils/constants";
+import type { Presence } from "@/types/Gateway";
 
 export interface ClientOptions {
   token: string;
@@ -112,6 +113,15 @@ export default class Client extends EventEmitter<ClientEvents> {
   get readyTimestamp(): number {
     if (!this.readyAt) throw new Error("Client is not ready");
     return this.readyAt.getTime();
+  }
+
+  /**
+   * Updates the presence of the bot
+   * @param {Partial<Pick<Presence, "activities" | "status">>} options The options to update the presence with
+   * @link https://discord.com/developers/docs/topics/gateway#update-presence
+   */
+  updatePresence(options: Partial<Pick<Presence, "activities" | "status">>): void {
+    for (const [_, shard] of this.shards) shard.updatePresence(options);
   }
 
   async getGatewayBot(): Promise<{
