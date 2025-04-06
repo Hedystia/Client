@@ -33,6 +33,16 @@ export interface ClientOptions {
         guilds: boolean;
       }
     | boolean;
+  cacheOptions?: {
+    guilds?: {
+      roles?: boolean;
+      emojis?: boolean;
+      stickers?: boolean;
+      approximate_member_count?: boolean;
+      approximate_presence_count?: boolean;
+      application_id?: boolean;
+    };
+  };
 }
 
 interface Activities {
@@ -64,6 +74,16 @@ export default class Client extends EventEmitter<ClientEvents> {
         guilds: boolean;
       }
     | boolean;
+  cacheOptions?: {
+    guilds?: {
+      roles?: boolean;
+      emojis?: boolean;
+      stickers?: boolean;
+      approximate_member_count?: boolean;
+      approximate_presence_count?: boolean;
+      application_id?: boolean;
+    };
+  };
 
   constructor(options: ClientOptions) {
     super();
@@ -97,6 +117,7 @@ export default class Client extends EventEmitter<ClientEvents> {
     this.ws = options?.ws;
 
     this.cache = options?.cache ?? true;
+    this.cacheOptions = options?.cacheOptions;
   }
 
   /**
