@@ -55,7 +55,7 @@ export default class GuildManager {
       .catch(() => null)) as APIGuild | null;
     if (!guild) return null;
     if (options?.useStructure) {
-      const guildStructure = new GuildStructure(this.client.guilds.transformPayload(guild));
+      const guildStructure = this.transformStructure(this.client.guilds.transformPayload(guild));
       if (this.client.isCacheEnabled("guilds")) {
         this._add(guildStructure, {
           enabled: true,
@@ -131,6 +131,17 @@ export default class GuildManager {
       widget_channel_id: data.widget_channel_id,
       widget_enabled: data.widget_enabled,
     };
+    return transformed;
+  }
+
+  /**
+   * Transforms a raw guild payload into a GuildStructure
+   * @param {CacheAPIGuild} data The raw guild payload
+   * @link https://discord.com/developers/docs/resources/guild#guild-object
+   * @returns {GuildStructureInstance} The transformed guild payload
+   */
+  public transformStructure<T extends CacheAPIGuild>(data: T): GuildStructureInstance {
+    const transformed = new GuildStructure(data);
     return transformed;
   }
 }

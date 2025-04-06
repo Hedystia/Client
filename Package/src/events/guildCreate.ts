@@ -1,5 +1,4 @@
 import type Client from "@/client";
-import GuildStructure from "@/structures/GuildStructure";
 import type { APIUnavailableGuild, GatewayGuildCreateDispatchData } from "discord-api-types/v10";
 
 type GuildCreateData = GatewayGuildCreateDispatchData | APIUnavailableGuild;
@@ -29,7 +28,9 @@ export default class GuildCreate {
       this.client.emit("guildUnavailable", packet);
       return;
     }
-    const guildStructure = new GuildStructure(this.client.guilds.transformPayload(packet));
+    const guildStructure = this.client.guilds.transformStructure(
+      this.client.guilds.transformPayload(packet),
+    );
     if (this.client.isCacheEnabled("guilds")) {
       this.client.guilds._add(guildStructure, {
         enabled: true,
