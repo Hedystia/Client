@@ -31,6 +31,14 @@ client.on("shardError", ({ id, error }) => {
   console.error(`Error in shard ${id}:`, error);
 });
 
+client.on("guildDelete", (guild) => {
+  // Check if the guild is cached
+  if ("name" in guild) {
+    return console.log(guild.owner_id);
+  }
+  console.log(guild.id);
+});
+
 client
   .login()
   .then(() => {
