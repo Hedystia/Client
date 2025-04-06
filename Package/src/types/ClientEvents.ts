@@ -75,6 +75,7 @@ import type {
   GatewayWebhooksUpdateDispatchData,
   GatewayDispatchPayload,
 } from "discord-api-types/v10";
+import type { GuildStructureInstance } from "@/structures/GuildStructure";
 
 export interface ClientEvents {
   // APPLICATION
@@ -102,7 +103,7 @@ export interface ClientEvents {
   guildBanAdd: [GatewayGuildBanAddDispatchData];
   guildBanRemove: [GatewayGuildBanRemoveDispatchData];
   guildCreate: [GatewayGuildCreateDispatchData];
-  guildDelete: [GatewayGuildDeleteDispatchData];
+  guildDelete: [GuildStructureInstance | GatewayGuildDeleteDispatchData];
   guildEmojisUpdate: [GatewayGuildEmojisUpdateDispatchData];
   guildIntegrationsUpdate: [GatewayGuildIntegrationsUpdateDispatchData];
   guildMemberAdd: [GatewayGuildMemberAddDispatchData];
