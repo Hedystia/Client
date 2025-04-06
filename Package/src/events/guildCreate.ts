@@ -1,6 +1,12 @@
 import type Client from "@/client";
 import GuildStructure from "@/structures/GuildStructure";
-import type { GatewayGuildCreateDispatchData } from "discord-api-types/v10";
+import type { APIUnavailableGuild, GatewayGuildCreateDispatchData } from "discord-api-types/v10";
+
+type GuildCreateData = GatewayGuildCreateDispatchData | APIUnavailableGuild;
+
+function isUnavailableGuild(data: GuildCreateData): data is APIUnavailableGuild {
+  return "unavailable" in data && data.unavailable === true;
+}
 
 export default class GuildCreate {
   client: Client;
@@ -8,7 +14,7 @@ export default class GuildCreate {
   constructor(
     client: Client,
     data: {
-      d: GatewayGuildCreateDispatchData;
+      d: GuildCreateData;
     },
   ) {
     this.client = client;
@@ -16,9 +22,13 @@ export default class GuildCreate {
   }
 
   async _patch(data: {
-    d: GatewayGuildCreateDispatchData;
+    d: GuildCreateData;
   }): Promise<void> {
     const packet = data.d;
+    if (isUnavailableGuild(packet)) {
+      this.client.emit("guildUnavailable", packet);
+      return;
+    }
     const guildStructure = new GuildStructure(this.client.guilds.transformPayload(packet));
     if (this.client.isCacheEnabled("guilds")) {
       this.client.guilds._add(guildStructure, {

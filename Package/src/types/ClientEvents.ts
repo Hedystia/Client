@@ -37,6 +37,7 @@ import type {
   GatewayGuildSoundboardSoundUpdateDispatchData,
   GatewaySoundboardSoundsDispatchData,
   GatewayGuildStickersUpdateDispatchData,
+  APIUnavailableGuild,
   GatewayGuildUpdateDispatchData,
   GatewayIntegrationCreateDispatchData,
   GatewayIntegrationDeleteDispatchData,
@@ -123,6 +124,7 @@ export interface ClientEvents {
   guildSoundboardSoundsUpdate: [GatewayGuildSoundboardSoundsUpdateDispatchData];
   guildSoundboardSoundUpdate: [GatewayGuildSoundboardSoundUpdateDispatchData];
   guildStickersUpdate: [GatewayGuildStickersUpdateDispatchData];
+  guildUnavailable: [APIUnavailableGuild];
   guildUpdate: [GatewayGuildUpdateDispatchData];
 
   // SOUNDBOARD
