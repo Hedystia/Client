@@ -18,6 +18,14 @@ export default class GuildDelete {
     d: GatewayGuildDeleteDispatchData;
   }): Promise<void> {
     const packet = data.d;
-    this.client.emit("guildDelete", packet);
+    const cachedGuild = this.client.isCacheEnabled("guilds")
+      ? this.client.guilds.cache.get(packet.id)
+      : null;
+
+    this.client.emit("guildDelete", cachedGuild ?? packet);
+
+    if (cachedGuild) {
+      this.client.guilds._remove(packet.id);
+    }
   }
 }
