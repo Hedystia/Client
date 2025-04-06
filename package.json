@@ -10,6 +10,7 @@
   "scripts": {
     "build": "bun run --cwd Package build",
     "dev": "concurrently \"bun run --cwd Package dev\" \"bun run --cwd Tests dev\"",
-    "start": "bun run --cwd Package build && bun run --cwd Tests start"
+    "start": "bun run --cwd Package build && bun run --cwd Tests start",
+    "start:cjs": "bun run --cwd Package build && bun run --cwd Tests start:cjs"
   }
 }
