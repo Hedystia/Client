@@ -13,6 +13,7 @@ import type { ClientOptions as WebSocketOptions } from "ws";
 import ShardManager from "./ShardManager";
 import { Routes } from "@/utils/constants";
 import type { Presence } from "@/types/Gateway";
+import GuildManager from "@/managers/GuildManager";
 
 export interface ClientOptions {
   token: string;
@@ -27,6 +28,11 @@ export interface ClientOptions {
   compress?: boolean;
   largeThreshold?: number;
   shardsCount?: number | "auto";
+  cache?:
+    | {
+        guilds: boolean;
+      }
+    | boolean;
 }
 
 interface Activities {
@@ -35,6 +41,8 @@ interface Activities {
   url?: string;
   state?: string;
 }
+
+type KnownCacheKeys = "guilds";
 
 export default class Client extends EventEmitter<ClientEvents> {
   token: string;
@@ -51,6 +59,11 @@ export default class Client extends EventEmitter<ClientEvents> {
   largeThreshold?: number;
   shardsCount: number | "auto";
   shards: Map<number, ShardManager>;
+  cache:
+    | {
+        guilds: boolean;
+      }
+    | boolean;
 
   constructor(options: ClientOptions) {
     super();
@@ -82,6 +95,8 @@ export default class Client extends EventEmitter<ClientEvents> {
     };
 
     this.ws = options?.ws;
+
+    this.cache = options?.cache ?? true;
   }
 
   /**
@@ -145,5 +160,20 @@ export default class Client extends EventEmitter<ClientEvents> {
         maxConcurrency: response.session_start_limit.max_concurrency,
       },
     };
+  }
+
+  isCacheEnabled<K extends KnownCacheKeys>(key: K, override?: boolean): boolean {
+    if (override !== undefined) return override;
+    if (this.cache === false) return false;
+    if (typeof this.cache === "object") return this.cache[key] ?? true;
+    return this.cache;
+  }
+
+  /**
+   * Gets the guilds cache
+   * @returns {GuildManager} The guilds cache
+   */
+  get guilds(): GuildManager {
+    return new GuildManager(this);
   }
 }
