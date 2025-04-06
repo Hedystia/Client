@@ -170,8 +170,8 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   /**
-   * Gets the guilds cache
-   * @returns {GuildManager} The guilds cache
+   * Gets the guilds manager
+   * @returns {GuildManager} The guilds manager
    */
   get guilds(): GuildManager {
     return new GuildManager(this);
