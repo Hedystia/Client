@@ -16,11 +16,13 @@ export default defineConfig({
   },
   format: "cjs",
   splitting: true,
-  esbuildOptions(options) {
-    options.minifyIdentifiers = true;
-    options.minifySyntax = true;
-    options.minifyWhitespace = true;
-    options.keepNames = false;
-  },
-  external: ["node:events", "ws"],
+  minify: true,
+  minifyIdentifiers: true,
+  minifySyntax: true,
+  minifyWhitespace: true,
+  keepNames: false,
+  sourcemap: false,
+  target: "esnext",
+  platform: "node",
+  external: ["node:events"],
 });
