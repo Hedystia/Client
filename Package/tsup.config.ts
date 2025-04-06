@@ -14,13 +14,13 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
   },
-  format: "esm",
+  format: "cjs",
   splitting: true,
   esbuildOptions(options) {
     options.minifyIdentifiers = true;
     options.minifySyntax = true;
     options.minifyWhitespace = true;
-    options.keepNames = true;
+    options.keepNames = false;
   },
   external: ["node:events", "ws"],
 });

@@ -18,7 +18,7 @@
   },
   "files": ["dist"],
   "keywords": ["discord", "api", "client", "typescript", "websocket", "ws", "bun"],
-  "type": "module",
+  "type": "commonjs",
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsup",
