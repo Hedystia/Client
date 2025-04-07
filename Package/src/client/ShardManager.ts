@@ -3,6 +3,7 @@ import { GatewayError } from "@/errors/Gateway";
 import type { Identify, Presence } from "@/types/Gateway";
 import {
   ActivityType,
+  GatewayCloseCodes,
   GatewayDispatchEvents,
   GatewayOpcodes,
   PresenceUpdateStatus,
@@ -530,16 +531,57 @@ export default class ShardManager {
     }
   }
 
+  /**
+   * Checks if the code is reconnectable
+   * @param {number} code The code to check
+   * @link https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes
+   * @returns {boolean} Whether the code is reconnectable
+   */
   shouldReconnect(code: number): boolean {
-    const reconnectableCodes = new Set([
-      5000, // OAuth2 error
-      5001, // Select channel timed out
-      5002, // GET_GUILD timed out
-      5003, // Select voice force required
-      5004, // Capture shortcut already listening
+    const codesThatCanReconnect = new Set([
+      /**
+       * We're not sure what went wrong. Try reconnecting?
+       */
+      GatewayCloseCodes.UnknownError,
+      /**
+       * You sent an invalid Gateway opcode or an invalid payload for an opcode. Don't do that!
+       *
+       * See https://discord.com/developers/docs/topics/gateway-events#payload-structure
+       */
+      GatewayCloseCodes.UnknownOpcode,
+      /**
+       * You sent an invalid payload to us. Don't do that!
+       *
+       * See https://discord.com/developers/docs/topics/gateway#sending-events
+       */
+      GatewayCloseCodes.DecodeError,
+      /**
+       * You sent us a payload prior to identifying
+       *
+       * See https://discord.com/developers/docs/topics/gateway-events#identify
+       */
+      GatewayCloseCodes.NotAuthenticated,
+      /**
+       * You sent more than one identify payload. Don't do that!
+       */
+      GatewayCloseCodes.AlreadyAuthenticated,
+      /**
+       * The sequence sent when resuming the session was invalid. Reconnect and start a new session
+       *
+       * See https://discord.com/developers/docs/topics/gateway-events#resume
+       */
+      GatewayCloseCodes.InvalidSeq,
+      /**
+       * Woah nelly! You're sending payloads to us too quickly. Slow it down! You will be disconnected on receiving this
+       */
+      GatewayCloseCodes.RateLimited,
+      /**
+       * Your session timed out. Reconnect and start a new one
+       */
+      GatewayCloseCodes.SessionTimedOut,
     ]);
 
-    return reconnectableCodes.has(code);
+    return codesThatCanReconnect.has(code);
   }
 
   /**
