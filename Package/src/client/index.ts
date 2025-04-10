@@ -121,16 +121,75 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   /**
-   * Logs in to the gateway
+   * Logs in to the gateway with rate limit handling
    * @link https://discord.com/developers/docs/topics/gateway#connecting
    */
   async login(): Promise<void> {
-    this.shardsCount =
-      this.shardsCount === "auto" ? (await this.getGatewayBot()).shards : this.shardsCount;
+    const gatewayData = await this.getGatewayBot();
+    this.shardsCount = this.shardsCount === "auto" ? gatewayData.shards : this.shardsCount;
 
     for (let i = 0; i < this.shardsCount; i++) this.shards.set(i, new ShardManager(i, this));
 
-    for (const [_, shard] of this.shards) shard.connect();
+    await this.connectShards(0, this.shards.size - 1, gatewayData.sessionStartLimit);
+  }
+
+  /**
+   * Connects shards while respecting Discord's session start limit
+   * @param {number} startIndex The index of the first shard to connect
+   * @param {number} endIndex The index of the last shard to connect
+   * @param {Object} sessionStartLimit The session start limit data
+   * @private
+   */
+  private async connectShards(
+    startIndex: number,
+    endIndex: number,
+    sessionStartLimit: {
+      total: number;
+      remaining: number;
+      resetAfter: number;
+      maxConcurrency: number;
+    },
+  ): Promise<void> {
+    if (startIndex > endIndex) return;
+
+    const remaining = sessionStartLimit.remaining;
+    const maxConcurrency = sessionStartLimit.maxConcurrency;
+
+    const LOW_REMAINING_THRESHOLD = Math.max(5, maxConcurrency);
+
+    if (remaining <= LOW_REMAINING_THRESHOLD && startIndex <= endIndex) {
+      await new Promise((resolve) => setTimeout(resolve, sessionStartLimit.resetAfter));
+      const newGatewayData = await this.getGatewayBot();
+      return this.connectShards(startIndex, endIndex, newGatewayData.sessionStartLimit);
+    }
+
+    const connectCount = Math.min(
+      maxConcurrency,
+      remaining - LOW_REMAINING_THRESHOLD,
+      endIndex - startIndex + 1,
+    );
+
+    const connectPromises = [];
+    for (let i = 0; i < connectCount; i++) {
+      const shardIndex = startIndex + i;
+      if (shardIndex <= endIndex) {
+        const shard = this.shards.get(shardIndex);
+        if (shard) {
+          connectPromises.push(shard.connect());
+        }
+      }
+    }
+
+    await Promise.all(connectPromises);
+
+    if (startIndex + connectCount <= endIndex) {
+      const updatedGatewayData = await this.getGatewayBot();
+      return this.connectShards(
+        startIndex + connectCount,
+        endIndex,
+        updatedGatewayData.sessionStartLimit,
+      );
+    }
   }
 
   disconnect(): void {
