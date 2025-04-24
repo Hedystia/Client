@@ -1,3 +1,8 @@
+/**
+ * Gateway Intents
+ * @returns {number} The intents
+ * @link https://discord.com/developers/docs/topics/gateway#gateway-intents
+ */
 enum GatewayIntents {
   guilds = 1 << 0,
   guildMembers = 1 << 1,
