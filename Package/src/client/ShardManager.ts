@@ -100,6 +100,8 @@ export default class ShardManager {
   ping = 0;
   lastHeartbeat = 0;
   lastHeartbeatAck = 0;
+  defaultUrl: string;
+  sequence = 0;
 
   /**
    * Creates a new ShardManager
@@ -110,16 +112,20 @@ export default class ShardManager {
     this.id = id;
     this.heartbeatInterval = null;
     this.client = client;
-    this.ws = new WebSocket("wss://gateway.discord.gg/?v=10&encoding=json", client.ws);
     this.sessionId = null;
     this.resumeGatewayUrl = null;
+    this.defaultUrl = "wss://gateway.discord.gg/?v=10&encoding=json";
+    this.ws = new WebSocket(this.defaultUrl, client.ws);
   }
 
   /**
    * Connects to the gateway
    * @link https://discord.com/developers/docs/topics/gateway#connections
    */
-  public connect(): void {
+  public connect(url?: string): void {
+    if (url) {
+      this.ws = new WebSocket(url, this.client.ws);
+    }
     this.ws.on("open", () => this.onWebSocketOpen());
     this.ws.on("message", (data) => this.onWebSocketMessage(data));
     this.ws.on("error", (err) => this.onWebSocketError(err));
@@ -495,6 +501,8 @@ export default class ShardManager {
   private onWebSocketMessage(data: RawData): void {
     const packet = JSON.parse(data.toString()) as GatewayReceivePayload;
 
+    if (packet.s) this.sequence = packet.s;
+
     switch (packet.op) {
       case GatewayOpcodes.Dispatch:
         this.onDispatch(packet);
@@ -527,8 +535,24 @@ export default class ShardManager {
       case GatewayOpcodes.Heartbeat:
         this.client.emit("heartbeat", this.id);
         this.lastHeartbeat = Date.now();
+        this.sendHeartbeat();
         break;
     }
+  }
+
+  /**
+   * Sends a heartbeat to the gateway
+   * @link https://discord.com/developers/docs/topics/gateway#heartbeating
+   */
+  sendHeartbeat(): void {
+    this.ws.send(
+      JSON.stringify({
+        op: GatewayOpcodes.Heartbeat,
+        d: this.sequence,
+        s: null,
+        t: null,
+      }),
+    );
   }
 
   /**
@@ -601,6 +625,17 @@ export default class ShardManager {
    */
   private onWebSocketClose(code: number, reason: Buffer): void {
     if (code === 1000) return;
+    if (code === 3000) return;
+    if (code === GatewayCloseCodes.InvalidShard) throw new Error("Invalid Shard");
+    if (code === GatewayCloseCodes.ShardingRequired) throw new Error("Sharding Required");
+    if (code === GatewayCloseCodes.InvalidAPIVersion) throw new Error("Invalid API Version");
+    if (code === GatewayCloseCodes.InvalidIntents) throw new Error("Invalid intent(s)");
+    if (code === GatewayCloseCodes.DisallowedIntents) throw new Error("Disallowed intent(s)");
+
+    if (code === 1001 || typeof code === "undefined") {
+      this.resumeWithUrl();
+      return;
+    }
 
     this.client.emit("shardDisconnect", { id: this.id, code });
 
@@ -636,6 +671,14 @@ export default class ShardManager {
         },
       }),
     );
+  }
+
+  /**
+   * Resumes the session with the url
+   * @link https://discord.com/developers/docs/topics/gateway#resuming
+   */
+  resumeWithUrl(): void {
+    this.connect(`${this.resumeGatewayUrl}/?v=10&encoding=json`);
   }
 
   /**
