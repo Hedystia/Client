@@ -29,7 +29,6 @@ class REST {
     const timeout = setTimeout(() => controller.abort(), this.client.restRequestTimeout);
 
     const headers: Record<string, string> = {
-      "Content-Type": options.headers?.["Content-Type"] || "application/json",
       Authorization: options.headers?.Authorization || `${this.token ?? this.client.token}`,
     };
 
@@ -41,12 +40,25 @@ class REST {
     let body: any;
 
     if (options.body) {
-      if (options.body instanceof Buffer) {
+      if (options.body instanceof FormData) {
         body = options.body;
+      } else if (options.body instanceof Buffer) {
+        body = options.body;
+        headers["Content-Type"] = options.headers?.["Content-Type"] || "application/octet-stream";
       } else if (typeof options.body === "string") {
         body = options.body;
+        headers["Content-Type"] = options.headers?.["Content-Type"] || "text/plain";
       } else {
         body = JSON.stringify(options.body);
+        headers["Content-Type"] = options.headers?.["Content-Type"] || "application/json";
+      }
+    }
+
+    if (options.headers) {
+      for (const [key, value] of Object.entries(options.headers)) {
+        if (key !== "Content-Type" || !options.body || !(options.body instanceof FormData)) {
+          headers[key] = value;
+        }
       }
     }
 
