@@ -632,7 +632,7 @@ export default class ShardManager {
     if (code === GatewayCloseCodes.InvalidIntents) throw new Error("Invalid intent(s)");
     if (code === GatewayCloseCodes.DisallowedIntents) throw new Error("Disallowed intent(s)");
 
-    if (code === 1001 || typeof code === "undefined") {
+    if (code === 1001 || typeof code === "undefined" || code === 1006) {
       this.resumeWithUrl();
       return;
     }
