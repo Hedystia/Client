@@ -84,6 +84,7 @@ export default class Client extends EventEmitter<ClientEvents> {
       application_id?: boolean;
     };
   };
+  private _guilds = new GuildManager(this);
 
   constructor(options: ClientOptions) {
     super();
@@ -254,6 +255,6 @@ export default class Client extends EventEmitter<ClientEvents> {
    * @returns {GuildManager} The guilds manager
    */
   get guilds(): GuildManager {
-    return new GuildManager(this);
+    return this._guilds;
   }
 }

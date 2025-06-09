@@ -8,6 +8,7 @@ import type { APIGuild } from "discord-api-types/v10";
 
 export default class GuildManager {
   client: Client;
+  private readonly _cache = new Cache<string, GuildStructureInstance>();
 
   constructor(client: Client) {
     this.client = client;
@@ -80,8 +81,8 @@ export default class GuildManager {
    * @link https://discord.com/developers/docs/resources/guild#guild-object
    * @returns {Cache<string, GuildStructureInstance>} The guilds cache
    */
-  public get cache(): Cache<string, CacheAPIGuild> {
-    return new Cache<string, GuildStructureInstance>();
+  public get cache(): Cache<string, GuildStructureInstance> {
+    return this._cache;
   }
 
   /**
