@@ -1,4 +1,8 @@
-import type { APIUnavailableGuild, GatewayGuildCreateDispatchData } from "discord-api-types/v10";
+import {
+  type APIUnavailableGuild,
+  type GatewayGuildCreateDispatchData,
+  GatewayOpcodes,
+} from "discord-api-types/v10";
 import type Client from "../client";
 
 type GuildCreateData = GatewayGuildCreateDispatchData | APIUnavailableGuild;
@@ -36,6 +40,23 @@ export default class GuildCreate {
     this.client.channels.set(packet.id, packet.channels);
     this.client.roles.set(packet.id, packet.roles);
     this.client.members.set(packet.id, packet.members);
+    this.requestMembers(packet);
     this.client.emit("guildCreate", packet);
+  }
+
+  requestMembers(guild: GuildCreateData) {
+    const guildId = guild.id;
+    for (const [_, shard] of this.client.shards) {
+      shard.ws.send(
+        JSON.stringify({
+          op: GatewayOpcodes.RequestGuildMembers,
+          d: {
+            guild_id: guildId,
+            query: "",
+            limit: 0,
+          },
+        }),
+      );
+    }
   }
 }
