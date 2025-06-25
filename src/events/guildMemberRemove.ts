@@ -16,6 +16,14 @@ export default class GuildMemberRemove {
 
   async _patch(data: { d: GatewayGuildMemberRemoveDispatchData }): Promise<void> {
     const packet = data.d;
+    const guildId = packet.guild_id;
+    const members = this.client.members.get(guildId);
+    if (members) {
+      const index = members.findIndex((m) => m.user.id === packet.user.id);
+      if (index !== -1) {
+        members.splice(index, 1);
+      }
+    }
     this.client.emit("guildMemberRemove", packet);
   }
 }

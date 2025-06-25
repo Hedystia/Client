@@ -16,6 +16,7 @@ export default class GuildMembersChunk {
 
   async _patch(data: { d: GatewayGuildMembersChunkDispatchData }): Promise<void> {
     const packet = data.d;
+    this.client.members.set(packet.guild_id, packet.members);
     this.client.emit("guildMembersChunk", packet);
   }
 }

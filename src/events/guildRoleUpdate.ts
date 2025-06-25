@@ -16,6 +16,14 @@ export default class GuildRoleUpdate {
 
   async _patch(data: { d: GatewayGuildRoleUpdateDispatchData }): Promise<void> {
     const packet = data.d;
+    const roles = this.client.roles.get(packet.guild_id);
+    if (roles) {
+      const index = roles.findIndex((r) => r.id === packet.role.id);
+      if (index !== -1) {
+        roles[index] = packet.role;
+        this.client.roles.set(packet.guild_id, roles);
+      }
+    }
     this.client.emit("guildRoleUpdate", packet);
   }
 }

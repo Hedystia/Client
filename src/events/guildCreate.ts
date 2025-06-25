@@ -29,12 +29,13 @@ export default class GuildCreate {
     const guildStructure = this.client.guilds.transformStructure(
       this.client.guilds.transformPayload(packet),
     );
-    if (this.client.isCacheEnabled("guilds")) {
-      this.client.guilds._add(guildStructure, {
-        enabled: true,
-        force: false,
-      });
-    }
+    this.client.guilds._add(guildStructure, {
+      enabled: true,
+      force: false,
+    });
+    this.client.channels.set(packet.id, packet.channels);
+    this.client.roles.set(packet.id, packet.roles);
+    this.client.members.set(packet.id, packet.members);
     this.client.emit("guildCreate", packet);
   }
 }

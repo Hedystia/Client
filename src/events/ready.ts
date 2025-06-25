@@ -1,4 +1,4 @@
-import type { GatewayReadyDispatchData } from "discord-api-types/v10";
+import { type APIUser, type GatewayReadyDispatchData, Routes } from "discord-api-types/v10";
 import type Client from "../client";
 
 export default class Ready {
@@ -16,7 +16,8 @@ export default class Ready {
 
   async _patch(data: { d: GatewayReadyDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.me = packet.user;
+    const user = (await this.client.rest.get(Routes.user(packet.user.id))) as APIUser;
+    this.client.me = user;
     this.client.emit("ready", packet);
   }
 }

@@ -2,7 +2,10 @@ import EventEmitter from "node:events";
 import type { WebSocketOptions } from "bun";
 import {
   type ActivityType,
+  type APIChannel,
   type APIGatewayBotInfo,
+  type APIGuildMember,
+  type APIRole,
   type APIUser,
   type PresenceUpdateReceiveStatus,
   PresenceUpdateStatus,
@@ -11,6 +14,7 @@ import GuildManager from "../managers/GuildManager";
 import REST from "../rest";
 import type { ClientEvents } from "../types/ClientEvents";
 import type { Presence } from "../types/Gateway";
+import Cache from "../utils/cache";
 import { Routes } from "../utils/constants";
 import type Intents from "../utils/intents";
 import ShardManager from "./ShardManager";
@@ -28,21 +32,6 @@ export interface ClientOptions {
   compress?: boolean;
   largeThreshold?: number;
   shardsCount?: number | "auto";
-  cache?:
-    | {
-        guilds: boolean;
-      }
-    | boolean;
-  cacheOptions?: {
-    guilds?: {
-      roles?: boolean;
-      emojis?: boolean;
-      stickers?: boolean;
-      approximate_member_count?: boolean;
-      approximate_presence_count?: boolean;
-      application_id?: boolean;
-    };
-  };
 }
 
 interface Activities {
@@ -52,7 +41,9 @@ interface Activities {
   state?: string;
 }
 
-type KnownCacheKeys = "guilds";
+const channels = new Cache<string, APIChannel[]>();
+const members = new Cache<string, APIGuildMember[]>();
+const roles = new Cache<string, APIRole[]>();
 
 export default class Client extends EventEmitter<ClientEvents> {
   token: string;
@@ -69,22 +60,10 @@ export default class Client extends EventEmitter<ClientEvents> {
   largeThreshold?: number;
   shardsCount: number | "auto";
   shards: Map<number, ShardManager>;
-  cache:
-    | {
-        guilds: boolean;
-      }
-    | boolean;
-  cacheOptions?: {
-    guilds?: {
-      roles?: boolean;
-      emojis?: boolean;
-      stickers?: boolean;
-      approximate_member_count?: boolean;
-      approximate_presence_count?: boolean;
-      application_id?: boolean;
-    };
-  };
   private _guilds = new GuildManager(this);
+  channels: Cache<string, APIChannel[]>;
+  members: Cache<string, APIGuildMember[]>;
+  roles: Cache<string, APIRole[]>;
 
   constructor(options: ClientOptions) {
     super();
@@ -117,8 +96,9 @@ export default class Client extends EventEmitter<ClientEvents> {
 
     this.ws = options?.ws;
 
-    this.cache = options?.cache ?? true;
-    this.cacheOptions = options?.cacheOptions;
+    this.channels = channels;
+    this.members = members;
+    this.roles = roles;
   }
 
   /**
@@ -253,19 +233,6 @@ export default class Client extends EventEmitter<ClientEvents> {
         maxConcurrency: response.session_start_limit.max_concurrency,
       },
     };
-  }
-
-  isCacheEnabled<K extends KnownCacheKeys>(key: K, override?: boolean): boolean {
-    if (override !== undefined) {
-      return override;
-    }
-    if (this.cache === false) {
-      return false;
-    }
-    if (typeof this.cache === "object") {
-      return this.cache[key] ?? true;
-    }
-    return this.cache;
   }
 
   /**

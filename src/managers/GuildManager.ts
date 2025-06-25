@@ -61,12 +61,10 @@ export default class GuildManager {
     }
     if (options?.useStructure !== false) {
       const guildStructure = this.transformStructure(this.client.guilds.transformPayload(guild));
-      if (this.client.isCacheEnabled("guilds")) {
-        this._add(guildStructure, {
-          enabled: true,
-          force: options?.cache?.force ?? false,
-        });
-      }
+      this._add(guildStructure, {
+        enabled: true,
+        force: options?.cache?.force ?? false,
+      });
       return guildStructure;
     }
     return guild;
@@ -109,16 +107,12 @@ export default class GuildManager {
       icon: data.icon,
       icon_hash: data.icon_hash,
       id: data.id,
-      roles: this.client.cacheOptions?.guilds?.roles ? data.roles : null,
-      emojis: this.client.cacheOptions?.guilds?.emojis ? data.emojis : null,
-      stickers: this.client.cacheOptions?.guilds?.stickers ? data.stickers : null,
-      approximate_member_count: this.client.cacheOptions?.guilds?.approximate_member_count
-        ? data.approximate_member_count
-        : null,
-      approximate_presence_count: this.client.cacheOptions?.guilds?.approximate_presence_count
-        ? data.approximate_presence_count
-        : null,
-      application_id: this.client.cacheOptions?.guilds?.application_id ? data.application_id : null,
+      roles: data.roles,
+      emojis: data.emojis,
+      stickers: data.stickers,
+      approximate_member_count: data.approximate_member_count,
+      approximate_presence_count: data.approximate_presence_count,
+      application_id: data.application_id,
       incidents_data: data.incidents_data,
       max_members: data.max_members,
       max_presences: data.max_presences,

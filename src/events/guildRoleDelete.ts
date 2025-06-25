@@ -16,6 +16,14 @@ export default class GuildRoleDelete {
 
   async _patch(data: { d: GatewayGuildRoleDeleteDispatchData }): Promise<void> {
     const packet = data.d;
+    const roles = this.client.roles.get(packet.guild_id);
+    if (roles) {
+      const index = roles.findIndex((r) => r.id === packet.role_id);
+      if (index !== -1) {
+        roles.splice(index, 1);
+        this.client.roles.set(packet.guild_id, roles);
+      }
+    }
     this.client.emit("guildRoleDelete", packet);
   }
 }

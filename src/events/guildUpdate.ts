@@ -19,12 +19,10 @@ export default class GuildUpdate {
     const guildStructure = this.client.guilds.transformStructure(
       this.client.guilds.transformPayload(packet),
     );
-    if (this.client.isCacheEnabled("guilds")) {
-      this.client.guilds._add(guildStructure, {
-        enabled: true,
-        force: true,
-      });
-    }
+    this.client.guilds._add(guildStructure, {
+      enabled: true,
+      force: true,
+    });
     this.client.emit("guildUpdate", packet);
   }
 }

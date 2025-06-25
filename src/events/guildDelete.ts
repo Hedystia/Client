@@ -16,11 +16,12 @@ export default class GuildDelete {
 
   async _patch(data: { d: GatewayGuildDeleteDispatchData }): Promise<void> {
     const packet = data.d;
-    const cachedGuild = this.client.isCacheEnabled("guilds")
-      ? this.client.guilds.cache.get(packet.id)
-      : null;
+    const cachedGuild = this.client.guilds.cache.get(packet.id);
 
     this.client.emit("guildDelete", cachedGuild ?? packet);
+    this.client.channels.delete(packet.id);
+    this.client.roles.delete(packet.id);
+    this.client.members.delete(packet.id);
 
     if (cachedGuild) {
       this.client.guilds._remove(packet.id);

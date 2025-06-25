@@ -16,6 +16,13 @@ export default class ChannelCreate {
 
   async _patch(data: { d: GatewayChannelCreateDispatchData }): Promise<void> {
     const packet = data.d;
+    const channels = this.client.channels.get(packet.guild_id);
+    if (channels) {
+      channels.push(packet);
+      this.client.channels.set(packet.guild_id, channels);
+    } else {
+      this.client.channels.set(packet.guild_id, [packet]);
+    }
     this.client.emit("channelCreate", packet);
   }
 }
