@@ -1,16 +1,45 @@
 {
-  "workspaces": ["Package", "Tests"],
+  "name": "@hedystia/discord",
+  "version": "0.0.1",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hedystia/Client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hedystia/Client/issues"
+  },
+  "homepage": "https://github.com/Hedystia/Client",
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "concurrently": "^9.1.2"
+    "@types/bun": "latest",
+    "discord-api-types": "^0.37.119",
+    "tsup": "^8.4.0"
+  },
+  "files": ["dist"],
+  "keywords": ["discord", "api", "client", "typescript", "websocket", "ws", "bun"],
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
-    "typescript": "^5.8.3"
+    "ws": "^8.18.1"
   },
-  "scripts": {
-    "build": "bun run --cwd Package build",
-    "dev": "concurrently \"bun run --cwd Package dev\" \"bun run --cwd Tests dev\"",
-    "start": "bun run --cwd Package build && bun run --cwd Tests start",
-    "start:cjs": "bun run --cwd Package build && bun run --cwd Tests start:cjs"
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "peerDependenciesMeta": {
+    "ws": {
+      "optional": true
+    }
   }
 }

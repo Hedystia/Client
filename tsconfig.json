@@ -20,7 +20,7 @@
     "declaration": true,
     "outDir": "dist",
     "paths": {
-      "@/*": ["./Package/src/*"]
+      "@/*": ["./src/*"]
     }
   }
 }
