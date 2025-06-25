@@ -1,10 +1,13 @@
 import {
+  ActivityFlags,
   ApplicationCommandOptionType as ApplicationCommandOptionTypeData,
   CDNRoutes,
   ImageFormat as ImageFormatData,
   PresenceUpdateStatus,
   Routes as RoutesData,
 } from "discord-api-types/v10";
+
+export const Activities = ActivityFlags;
 
 export const Status = PresenceUpdateStatus;
 
