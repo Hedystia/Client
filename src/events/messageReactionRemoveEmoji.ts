@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayMessageReactionRemoveEmojiDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class MessageReactionRemoveEmoji {
   client: Client;
@@ -14,9 +14,7 @@ export default class MessageReactionRemoveEmoji {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayMessageReactionRemoveEmojiDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayMessageReactionRemoveEmojiDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("messageReactionRemoveEmoji", packet);
   }

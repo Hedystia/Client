@@ -12,6 +12,7 @@
   },
   "homepage": "https://github.com/Hedystia/Client",
   "devDependencies": {
+    "@biomejs/biome": "^2.0.5",
     "@types/bun": "^1.2.17",
     "discord-api-types": "^0.38.13",
     "tsup": "^8.5.0"
@@ -28,13 +29,6 @@
   },
   "peerDependencies": {
     "ws": "latest"
-  },
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./package.json": "./package.json"
   },
   "license": "MIT",
   "peerDependenciesMeta": {

@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayTypingStartDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class TypingStart {
   client: Client;
@@ -14,9 +14,7 @@ export default class TypingStart {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayTypingStartDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayTypingStartDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("typingStart", packet);
   }

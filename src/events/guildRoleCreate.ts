@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayGuildRoleCreateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class GuildRoleCreate {
   client: Client;
@@ -14,9 +14,7 @@ export default class GuildRoleCreate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayGuildRoleCreateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayGuildRoleCreateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("guildRoleCreate", packet);
   }

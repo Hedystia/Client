@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayGuildDeleteDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class GuildDelete {
   client: Client;
@@ -14,9 +14,7 @@ export default class GuildDelete {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayGuildDeleteDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayGuildDeleteDispatchData }): Promise<void> {
     const packet = data.d;
     const cachedGuild = this.client.isCacheEnabled("guilds")
       ? this.client.guilds.cache.get(packet.id)

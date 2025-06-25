@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayGuildMemberAddDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class GuildMemberAdd {
   client: Client;
@@ -14,9 +14,7 @@ export default class GuildMemberAdd {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayGuildMemberAddDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayGuildMemberAddDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("guildMemberAdd", packet);
   }

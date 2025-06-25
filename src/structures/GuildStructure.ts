@@ -10,5 +10,4 @@ export default GuildStructure as new <T extends CacheAPIGuild = CacheAPIGuild>(
   data: T,
 ) => GuildStructure<T> & T;
 
-
 export type GuildStructureInstance = InstanceType<typeof GuildStructure> & CacheAPIGuild;

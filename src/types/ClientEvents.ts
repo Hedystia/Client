@@ -1,5 +1,6 @@
 import { EventEmitter } from "node:events";
 import type {
+  APIUnavailableGuild,
   GatewayApplicationCommandPermissionsUpdateDispatchData,
   GatewayAutoModerationActionExecutionDispatchData,
   GatewayAutoModerationRuleCreateDispatchData,
@@ -9,6 +10,7 @@ import type {
   GatewayChannelDeleteDispatchData,
   GatewayChannelPinsUpdateDispatchData,
   GatewayChannelUpdateDispatchData,
+  GatewayDispatchPayload,
   GatewayEntitlementCreateDispatchData,
   GatewayEntitlementDeleteDispatchData,
   GatewayEntitlementUpdateDispatchData,
@@ -35,9 +37,7 @@ import type {
   GatewayGuildSoundboardSoundDeleteDispatchData,
   GatewayGuildSoundboardSoundsUpdateDispatchData,
   GatewayGuildSoundboardSoundUpdateDispatchData,
-  GatewaySoundboardSoundsDispatchData,
   GatewayGuildStickersUpdateDispatchData,
-  APIUnavailableGuild,
   GatewayGuildUpdateDispatchData,
   GatewayIntegrationCreateDispatchData,
   GatewayIntegrationDeleteDispatchData,
@@ -46,16 +46,17 @@ import type {
   GatewayInviteCreateDispatchData,
   GatewayInviteDeleteDispatchData,
   GatewayMessageCreateDispatchData,
-  GatewayMessageDeleteDispatchData,
   GatewayMessageDeleteBulkDispatchData,
+  GatewayMessageDeleteDispatchData,
   GatewayMessagePollVoteDispatchData,
   GatewayMessageReactionAddDispatchData,
-  GatewayMessageReactionRemoveDispatchData,
   GatewayMessageReactionRemoveAllDispatchData,
+  GatewayMessageReactionRemoveDispatchData,
   GatewayMessageReactionRemoveEmojiDispatchData,
   GatewayMessageUpdateDispatchData,
   GatewayPresenceUpdateDispatchData,
   GatewayReadyDispatchData,
+  GatewaySoundboardSoundsDispatchData,
   GatewayStageInstanceCreateDispatchData,
   GatewayStageInstanceDeleteDispatchData,
   GatewayStageInstanceUpdateDispatchData,
@@ -74,7 +75,6 @@ import type {
   GatewayVoiceServerUpdateDispatchData,
   GatewayVoiceStateUpdateDispatchData,
   GatewayWebhooksUpdateDispatchData,
-  GatewayDispatchPayload,
 } from "discord-api-types/v10";
 import type { GuildStructureInstance } from "@/structures/GuildStructure";
 

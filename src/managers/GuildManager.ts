@@ -1,10 +1,10 @@
+import type { APIGuild } from "discord-api-types/v10";
 import type Client from "@/client";
 import type { GuildStructureInstance } from "@/structures/GuildStructure";
 import GuildStructure from "@/structures/GuildStructure";
 import type { CacheAPIGuild } from "@/types/Cache";
 import Cache from "@/utils/cache";
 import { Routes } from "@/utils/constants";
-import type { APIGuild } from "discord-api-types/v10";
 
 export default class GuildManager {
   client: Client;
@@ -29,7 +29,9 @@ export default class GuildManager {
   ): void {
     if (cache.enabled) {
       const guild = this.client.guilds.cache.get(data.id);
-      if (guild && !cache.force) return;
+      if (guild && !cache.force) {
+        return;
+      }
       this.client.guilds.cache.set(data.id, data);
     }
   }
@@ -54,7 +56,9 @@ export default class GuildManager {
     const guild = (await this.client.rest
       .get(Routes.guild(id))
       .catch(() => null)) as APIGuild | null;
-    if (!guild) return null;
+    if (!guild) {
+      return null;
+    }
     if (options?.useStructure !== false) {
       const guildStructure = this.transformStructure(this.client.guilds.transformPayload(guild));
       if (this.client.isCacheEnabled("guilds")) {

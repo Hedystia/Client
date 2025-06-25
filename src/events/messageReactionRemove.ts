@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayMessageReactionRemoveDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class MessageReactionRemove {
   client: Client;
@@ -14,9 +14,7 @@ export default class MessageReactionRemove {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayMessageReactionRemoveDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayMessageReactionRemoveDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("messageReactionRemove", packet);
   }

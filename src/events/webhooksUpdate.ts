@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayWebhooksUpdateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class WebhooksUpdate {
   client: Client;
@@ -14,9 +14,7 @@ export default class WebhooksUpdate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayWebhooksUpdateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayWebhooksUpdateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("webhooksUpdate", packet);
   }

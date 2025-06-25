@@ -1,19 +1,19 @@
-import REST from "@/rest";
 import EventEmitter from "node:events";
-import type Intents from "@/utils/intents";
-import type { ClientEvents } from "@/types/ClientEvents";
 import {
-  PresenceUpdateStatus,
   type ActivityType,
   type APIGatewayBotInfo,
   type APIUser,
   type PresenceUpdateReceiveStatus,
+  PresenceUpdateStatus,
 } from "discord-api-types/v10";
 import type { ClientOptions as WebSocketOptions } from "ws";
-import ShardManager from "./ShardManager";
-import { Routes } from "@/utils/constants";
-import type { Presence } from "@/types/Gateway";
 import GuildManager from "@/managers/GuildManager";
+import REST from "@/rest";
+import type { ClientEvents } from "@/types/ClientEvents";
+import type { Presence } from "@/types/Gateway";
+import { Routes } from "@/utils/constants";
+import type Intents from "@/utils/intents";
+import ShardManager from "./ShardManager";
 
 export interface ClientOptions {
   token: string;
@@ -129,7 +129,9 @@ export default class Client extends EventEmitter<ClientEvents> {
     const gatewayData = await this.getGatewayBot();
     this.shardsCount = this.shardsCount === "auto" ? gatewayData.shards : this.shardsCount;
 
-    for (let i = 0; i < this.shardsCount; i++) this.shards.set(i, new ShardManager(i, this));
+    for (let i = 0; i < this.shardsCount; i++) {
+      this.shards.set(i, new ShardManager(i, this));
+    }
 
     await this.connectShards(0, this.shards.size - 1, gatewayData.sessionStartLimit);
   }
@@ -151,7 +153,9 @@ export default class Client extends EventEmitter<ClientEvents> {
       maxConcurrency: number;
     },
   ): Promise<void> {
-    if (startIndex > endIndex) return;
+    if (startIndex > endIndex) {
+      return;
+    }
 
     const remaining = sessionStartLimit.remaining;
     const maxConcurrency = sessionStartLimit.maxConcurrency;
@@ -194,11 +198,15 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   disconnect(): void {
-    for (const [_, shard] of this.shards) shard.disconnect();
+    for (const [_, shard] of this.shards) {
+      shard.disconnect();
+    }
   }
 
   get uptime(): number {
-    if (!this.readyAt) throw new Error("Client is not ready");
+    if (!this.readyAt) {
+      throw new Error("Client is not ready");
+    }
     return Date.now() - this.readyAt.getTime();
   }
 
@@ -207,7 +215,9 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   get readyTimestamp(): number {
-    if (!this.readyAt) throw new Error("Client is not ready");
+    if (!this.readyAt) {
+      throw new Error("Client is not ready");
+    }
     return this.readyAt.getTime();
   }
 
@@ -217,7 +227,9 @@ export default class Client extends EventEmitter<ClientEvents> {
    * @link https://discord.com/developers/docs/topics/gateway#update-presence
    */
   updatePresence(options: Partial<Pick<Presence, "activities" | "status">>): void {
-    for (const [_, shard] of this.shards) shard.updatePresence(options);
+    for (const [_, shard] of this.shards) {
+      shard.updatePresence(options);
+    }
   }
 
   async getGatewayBot(): Promise<{
@@ -244,9 +256,15 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   isCacheEnabled<K extends KnownCacheKeys>(key: K, override?: boolean): boolean {
-    if (override !== undefined) return override;
-    if (this.cache === false) return false;
-    if (typeof this.cache === "object") return this.cache[key] ?? true;
+    if (override !== undefined) {
+      return override;
+    }
+    if (this.cache === false) {
+      return false;
+    }
+    if (typeof this.cache === "object") {
+      return this.cache[key] ?? true;
+    }
     return this.cache;
   }
 

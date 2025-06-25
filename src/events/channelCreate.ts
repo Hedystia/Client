@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayChannelCreateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class ChannelCreate {
   client: Client;
@@ -14,9 +14,7 @@ export default class ChannelCreate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayChannelCreateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayChannelCreateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("channelCreate", packet);
   }

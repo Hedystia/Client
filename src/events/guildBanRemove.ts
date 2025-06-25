@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayGuildBanRemoveDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class GuildBanRemove {
   client: Client;
@@ -14,9 +14,7 @@ export default class GuildBanRemove {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayGuildBanRemoveDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayGuildBanRemoveDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("guildBanRemove", packet);
   }

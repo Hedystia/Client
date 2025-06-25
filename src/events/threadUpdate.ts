@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayThreadUpdateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class ThreadUpdate {
   client: Client;
@@ -14,9 +14,7 @@ export default class ThreadUpdate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayThreadUpdateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayThreadUpdateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("threadUpdate", packet);
   }

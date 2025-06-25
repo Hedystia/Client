@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayThreadListSyncDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class ThreadListSync {
   client: Client;
@@ -14,9 +14,7 @@ export default class ThreadListSync {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayThreadListSyncDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayThreadListSyncDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("threadListSync", packet);
   }

@@ -17,19 +17,25 @@ export default class Cache<K, V> extends Map<K, V> {
     const iterator = this.values();
     return Array.from({ length: this.size }, () => {
       const { value, done } = iterator.next();
-      if (done || value === undefined) return undefined as unknown as U;
+      if (done || value === undefined) {
+        return undefined as unknown as U;
+      }
       return fn(value, value as unknown as K, this);
     }).filter((item) => item !== undefined);
   }
 
   first(): V | undefined {
-    if (this.size <= 0) return undefined;
+    if (this.size <= 0) {
+      return undefined;
+    }
     return this.values().next().value;
   }
 
   find(fn: (val: V, key: K, map: Cache<K, V>) => boolean): V | undefined {
     for (const [key, val] of this) {
-      if (fn(val, key, this)) return val;
+      if (fn(val, key, this)) {
+        return val;
+      }
     }
     return undefined;
   }
@@ -37,7 +43,9 @@ export default class Cache<K, V> extends Map<K, V> {
   filter(fn: (val: V, key: K, map: Cache<K, V>) => boolean): Cache<K, V> {
     const result = new Cache<K, V>();
     for (const [key, val] of this) {
-      if (fn(val, key, this)) result.set(key, val);
+      if (fn(val, key, this)) {
+        result.set(key, val);
+      }
     }
     return result;
   }
@@ -45,13 +53,17 @@ export default class Cache<K, V> extends Map<K, V> {
   filterKey(fn: (key: K) => boolean): Cache<K, V> {
     const result = new Cache<K, V>();
     for (const [key, val] of this) {
-      if (fn(key)) result.set(key, val);
+      if (fn(key)) {
+        result.set(key, val);
+      }
     }
     return result;
   }
 
   last(): V | undefined {
-    if (this.size <= 0) return undefined;
+    if (this.size <= 0) {
+      return undefined;
+    }
     return Array.from(this.values())[Array.from(this.values()).length - 1];
   }
 
@@ -93,7 +105,9 @@ export default class Cache<K, V> extends Map<K, V> {
 
   some(fn: (val: V, key: K, map: Cache<K, V>) => boolean): boolean {
     for (const [key, val] of this.entries()) {
-      if (fn(val, key, this)) return true;
+      if (fn(val, key, this)) {
+        return true;
+      }
     }
     return false;
   }
@@ -125,7 +139,9 @@ export default class Cache<K, V> extends Map<K, V> {
 
   every(fn: (val: V, key: K, map: Cache<K, V>) => boolean): boolean {
     for (const [key, val] of this) {
-      if (!fn(val, key, this)) return false;
+      if (!fn(val, key, this)) {
+        return false;
+      }
     }
     return true;
   }
@@ -141,23 +157,35 @@ export default class Cache<K, V> extends Map<K, V> {
   }
 
   equals(cache: Cache<K, V>): boolean {
-    if (!cache) return false;
-    if (this.size !== cache.size) return false;
-    if (this === cache) return true;
+    if (!cache) {
+      return false;
+    }
+    if (this.size !== cache.size) {
+      return false;
+    }
+    if (this === cache) {
+      return true;
+    }
     for (const [key, val] of this) {
-      if (!cache.has(key) || val !== cache.get(key)) return false;
+      if (!cache.has(key) || val !== cache.get(key)) {
+        return false;
+      }
     }
     return true;
   }
 
   difference(cache: Cache<K, V>): K[] | string {
-    if (this.size !== cache.size) return `size difference by: ${Math.abs(this.size - cache.size)}`;
+    if (this.size !== cache.size) {
+      return `size difference by: ${Math.abs(this.size - cache.size)}`;
+    }
     return Array.from(cache.keys()).filter((value) => !this.has(value));
   }
 
   findKey(fn: (val: V, key: K, map: Cache<K, V>) => boolean): K | undefined {
     for (const [key, val] of this) {
-      if (fn(val, key, this)) return key;
+      if (fn(val, key, this)) {
+        return key;
+      }
     }
     return undefined;
   }
@@ -182,7 +210,9 @@ export default class Cache<K, V> extends Map<K, V> {
   }
 
   static defaultCompareFunction<V>(a: V, b: V): number {
-    if (a === b) return 0;
+    if (a === b) {
+      return 0;
+    }
     return a > b ? 1 : -1;
   }
 }

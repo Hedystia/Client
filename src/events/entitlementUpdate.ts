@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayEntitlementUpdateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class EntitlementUpdate {
   client: Client;
@@ -14,9 +14,7 @@ export default class EntitlementUpdate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayEntitlementUpdateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayEntitlementUpdateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("entitlementUpdate", packet);
   }

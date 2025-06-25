@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewaySubscriptionCreateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class SubscriptionCreate {
   client: Client;
@@ -14,9 +14,7 @@ export default class SubscriptionCreate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewaySubscriptionCreateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewaySubscriptionCreateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("subscriptionCreate", packet);
   }

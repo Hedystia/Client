@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayChannelDeleteDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class ChannelDelete {
   client: Client;
@@ -14,9 +14,7 @@ export default class ChannelDelete {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayChannelDeleteDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayChannelDeleteDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("channelDelete", packet);
   }

@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewaySoundboardSoundsDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class SoundboardSounds {
   client: Client;
@@ -14,9 +14,7 @@ export default class SoundboardSounds {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewaySoundboardSoundsDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewaySoundboardSoundsDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("soundboardSounds", packet);
   }

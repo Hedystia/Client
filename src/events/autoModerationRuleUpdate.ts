@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayAutoModerationRuleUpdateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class AutoModerationRuleUpdate {
   client: Client;
@@ -14,9 +14,7 @@ export default class AutoModerationRuleUpdate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayAutoModerationRuleUpdateDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayAutoModerationRuleUpdateDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("autoModerationRuleUpdate", packet);
   }

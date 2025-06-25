@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { GatewayGuildScheduledEventDeleteDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 export default class GuildScheduledEventDelete {
   client: Client;
@@ -14,9 +14,7 @@ export default class GuildScheduledEventDelete {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GatewayGuildScheduledEventDeleteDispatchData;
-  }): Promise<void> {
+  async _patch(data: { d: GatewayGuildScheduledEventDeleteDispatchData }): Promise<void> {
     const packet = data.d;
     this.client.emit("guildScheduledEventDelete", packet);
   }

@@ -1,5 +1,5 @@
-import type Client from "@/client";
 import type { APIUnavailableGuild, GatewayGuildCreateDispatchData } from "discord-api-types/v10";
+import type Client from "@/client";
 
 type GuildCreateData = GatewayGuildCreateDispatchData | APIUnavailableGuild;
 
@@ -20,9 +20,7 @@ export default class GuildCreate {
     this._patch(data);
   }
 
-  async _patch(data: {
-    d: GuildCreateData;
-  }): Promise<void> {
+  async _patch(data: { d: GuildCreateData }): Promise<void> {
     const packet = data.d;
     if (isUnavailableGuild(packet)) {
       this.client.emit("guildUnavailable", packet);
