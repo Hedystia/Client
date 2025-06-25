@@ -8,86 +8,85 @@ import {
   type GatewayVoiceStateUpdateData,
   PresenceUpdateStatus,
 } from "discord-api-types/v10";
-import WebSocket, { type RawData } from "ws";
-import type Client from "@/client";
-import { GatewayError } from "@/errors/Gateway";
+import type Client from "../client";
+import { GatewayError } from "../errors/Gateway";
 // Events
-import ApplicationCommandPermissionsUpdate from "@/events/applicationCommandPermissionsUpdate";
-import AutoModerationActionExecution from "@/events/autoModerationActionExecution";
-import AutoModerationRuleCreate from "@/events/autoModerationRuleCreate";
-import AutoModerationRuleDelete from "@/events/autoModerationRuleDelete";
-import AutoModerationRuleUpdate from "@/events/autoModerationRuleUpdate";
-import ChannelCreate from "@/events/channelCreate";
-import ChannelDelete from "@/events/channelDelete";
-import ChannelPinsUpdate from "@/events/channelPinsUpdate";
-import ChannelUpdate from "@/events/channelUpdate";
-import EntitlementCreate from "@/events/entitlementCreate";
-import EntitlementDelete from "@/events/entitlementDelete";
-import EntitlementUpdate from "@/events/entitlementUpdate";
-import GuildAuditLogEntryCreate from "@/events/guildAuditLogEntryCreate";
-import GuildBanAdd from "@/events/guildBanAdd";
-import GuildBanRemove from "@/events/guildBanRemove";
-import GuildCreate from "@/events/guildCreate";
-import GuildDelete from "@/events/guildDelete";
-import GuildEmojisUpdate from "@/events/guildEmojisUpdate";
-import GuildIntegrationsUpdate from "@/events/guildIntegrationsUpdate";
-import GuildMemberAdd from "@/events/guildMemberAdd";
-import GuildMemberRemove from "@/events/guildMemberRemove";
-import GuildMembersChunk from "@/events/guildMembersChunk";
-import GuildMemberUpdate from "@/events/guildMemberUpdate";
-import GuildRoleCreate from "@/events/guildRoleCreate";
-import GuildRoleDelete from "@/events/guildRoleDelete";
-import GuildRoleUpdate from "@/events/guildRoleUpdate";
-import GuildScheduledEventCreate from "@/events/guildScheduledEventCreate";
-import GuildScheduledEventDelete from "@/events/guildScheduledEventDelete";
-import GuildScheduledEventUpdate from "@/events/guildScheduledEventUpdate";
-import GuildScheduledEventUserAdd from "@/events/guildScheduledEventUserAdd";
-import GuildScheduledEventUserRemove from "@/events/guildScheduledEventUserRemove";
-import GuildSoundboardSoundCreate from "@/events/guildSoundboardSoundCreate";
-import GuildSoundboardSoundDelete from "@/events/guildSoundboardSoundDelete";
-import GuildSoundboardSoundsUpdate from "@/events/guildSoundboardSoundsUpdate";
-import GuildSoundboardSoundUpdate from "@/events/guildSoundboardSoundUpdate";
-import GuildStickersUpdate from "@/events/guildStickersUpdate";
-import GuildUpdate from "@/events/guildUpdate";
-import IntegrationCreate from "@/events/integrationCreate";
-import IntegrationDelete from "@/events/integrationDelete";
-import IntegrationUpdate from "@/events/integrationUpdate";
-import InteractionCreate from "@/events/interactionCreate";
-import InviteCreate from "@/events/inviteCreate";
-import InviteDelete from "@/events/inviteDelete";
-import MessageCreate from "@/events/messageCreate";
-import MessageDelete from "@/events/messageDelete";
-import MessageDeleteBulk from "@/events/messageDeleteBulk";
-import MessagePollVoteAdd from "@/events/messagePollVoteAdd";
-import MessagePollVoteRemove from "@/events/messagePollVoteRemove";
-import MessageReactionAdd from "@/events/messageReactionAdd";
-import MessageReactionRemove from "@/events/messageReactionRemove";
-import MessageReactionRemoveAll from "@/events/messageReactionRemoveAll";
-import MessageReactionRemoveEmoji from "@/events/messageReactionRemoveEmoji";
-import MessageUpdate from "@/events/messageUpdate";
-import PresenceUpdate from "@/events/presenceUpdate";
-import Ready from "@/events/ready";
-import Resumed from "@/events/resumed";
-import SoundboardSounds from "@/events/soundboardSounds";
-import StageInstanceCreate from "@/events/stageInstanceCreate";
-import StageInstanceDelete from "@/events/stageInstanceDelete";
-import StageInstanceUpdate from "@/events/stageInstanceUpdate";
-import SubscriptionCreate from "@/events/subscriptionCreate";
-import SubscriptionDelete from "@/events/subscriptionDelete";
-import SubscriptionUpdate from "@/events/subscriptionUpdate";
-import ThreadCreate from "@/events/threadCreate";
-import ThreadDelete from "@/events/threadDelete";
-import ThreadListSync from "@/events/threadListSync";
-import ThreadMembersUpdate from "@/events/threadMembersUpdate";
-import ThreadMemberUpdate from "@/events/threadMemberUpdate";
-import ThreadUpdate from "@/events/threadUpdate";
-import TypingStart from "@/events/typingStart";
-import UserUpdate from "@/events/userUpdate";
-import VoiceChannelEffectSend from "@/events/voiceChannelEffectSend";
-import VoiceServerUpdate from "@/events/voiceServerUpdate";
-import VoiceStateUpdate from "@/events/voiceStateUpdate";
-import WebhooksUpdate from "@/events/webhooksUpdate";
-import type { Identify, Presence } from "@/types/Gateway";
+import ApplicationCommandPermissionsUpdate from "../events/applicationCommandPermissionsUpdate";
+import AutoModerationActionExecution from "../events/autoModerationActionExecution";
+import AutoModerationRuleCreate from "../events/autoModerationRuleCreate";
+import AutoModerationRuleDelete from "../events/autoModerationRuleDelete";
+import AutoModerationRuleUpdate from "../events/autoModerationRuleUpdate";
+import ChannelCreate from "../events/channelCreate";
+import ChannelDelete from "../events/channelDelete";
+import ChannelPinsUpdate from "../events/channelPinsUpdate";
+import ChannelUpdate from "../events/channelUpdate";
+import EntitlementCreate from "../events/entitlementCreate";
+import EntitlementDelete from "../events/entitlementDelete";
+import EntitlementUpdate from "../events/entitlementUpdate";
+import GuildAuditLogEntryCreate from "../events/guildAuditLogEntryCreate";
+import GuildBanAdd from "../events/guildBanAdd";
+import GuildBanRemove from "../events/guildBanRemove";
+import GuildCreate from "../events/guildCreate";
+import GuildDelete from "../events/guildDelete";
+import GuildEmojisUpdate from "../events/guildEmojisUpdate";
+import GuildIntegrationsUpdate from "../events/guildIntegrationsUpdate";
+import GuildMemberAdd from "../events/guildMemberAdd";
+import GuildMemberRemove from "../events/guildMemberRemove";
+import GuildMembersChunk from "../events/guildMembersChunk";
+import GuildMemberUpdate from "../events/guildMemberUpdate";
+import GuildRoleCreate from "../events/guildRoleCreate";
+import GuildRoleDelete from "../events/guildRoleDelete";
+import GuildRoleUpdate from "../events/guildRoleUpdate";
+import GuildScheduledEventCreate from "../events/guildScheduledEventCreate";
+import GuildScheduledEventDelete from "../events/guildScheduledEventDelete";
+import GuildScheduledEventUpdate from "../events/guildScheduledEventUpdate";
+import GuildScheduledEventUserAdd from "../events/guildScheduledEventUserAdd";
+import GuildScheduledEventUserRemove from "../events/guildScheduledEventUserRemove";
+import GuildSoundboardSoundCreate from "../events/guildSoundboardSoundCreate";
+import GuildSoundboardSoundDelete from "../events/guildSoundboardSoundDelete";
+import GuildSoundboardSoundsUpdate from "../events/guildSoundboardSoundsUpdate";
+import GuildSoundboardSoundUpdate from "../events/guildSoundboardSoundUpdate";
+import GuildStickersUpdate from "../events/guildStickersUpdate";
+import GuildUpdate from "../events/guildUpdate";
+import IntegrationCreate from "../events/integrationCreate";
+import IntegrationDelete from "../events/integrationDelete";
+import IntegrationUpdate from "../events/integrationUpdate";
+import InteractionCreate from "../events/interactionCreate";
+import InviteCreate from "../events/inviteCreate";
+import InviteDelete from "../events/inviteDelete";
+import MessageCreate from "../events/messageCreate";
+import MessageDelete from "../events/messageDelete";
+import MessageDeleteBulk from "../events/messageDeleteBulk";
+import MessagePollVoteAdd from "../events/messagePollVoteAdd";
+import MessagePollVoteRemove from "../events/messagePollVoteRemove";
+import MessageReactionAdd from "../events/messageReactionAdd";
+import MessageReactionRemove from "../events/messageReactionRemove";
+import MessageReactionRemoveAll from "../events/messageReactionRemoveAll";
+import MessageReactionRemoveEmoji from "../events/messageReactionRemoveEmoji";
+import MessageUpdate from "../events/messageUpdate";
+import PresenceUpdate from "../events/presenceUpdate";
+import Ready from "../events/ready";
+import Resumed from "../events/resumed";
+import SoundboardSounds from "../events/soundboardSounds";
+import StageInstanceCreate from "../events/stageInstanceCreate";
+import StageInstanceDelete from "../events/stageInstanceDelete";
+import StageInstanceUpdate from "../events/stageInstanceUpdate";
+import SubscriptionCreate from "../events/subscriptionCreate";
+import SubscriptionDelete from "../events/subscriptionDelete";
+import SubscriptionUpdate from "../events/subscriptionUpdate";
+import ThreadCreate from "../events/threadCreate";
+import ThreadDelete from "../events/threadDelete";
+import ThreadListSync from "../events/threadListSync";
+import ThreadMembersUpdate from "../events/threadMembersUpdate";
+import ThreadMemberUpdate from "../events/threadMemberUpdate";
+import ThreadUpdate from "../events/threadUpdate";
+import TypingStart from "../events/typingStart";
+import UserUpdate from "../events/userUpdate";
+import VoiceChannelEffectSend from "../events/voiceChannelEffectSend";
+import VoiceServerUpdate from "../events/voiceServerUpdate";
+import VoiceStateUpdate from "../events/voiceStateUpdate";
+import WebhooksUpdate from "../events/webhooksUpdate";
+import type { Identify, Presence } from "../types/Gateway";
 
 export default class ShardManager {
   id: number;
@@ -114,7 +113,7 @@ export default class ShardManager {
     this.sessionId = null;
     this.resumeGatewayUrl = null;
     this.defaultUrl = "wss://gateway.discord.gg/?v=10&encoding=json";
-    this.ws = new WebSocket(this.defaultUrl, client.ws);
+    this.ws = new WebSocket(this.defaultUrl);
   }
 
   /**
@@ -123,12 +122,13 @@ export default class ShardManager {
    */
   public connect(url?: string): void {
     if (url) {
-      this.ws = new WebSocket(url, this.client.ws);
+      this.ws = new WebSocket(url);
     }
-    this.ws.on("open", () => this.onWebSocketOpen());
-    this.ws.on("message", (data) => this.onWebSocketMessage(data));
-    this.ws.on("error", (err) => this.onWebSocketError(err));
-    this.ws.on("close", (code, reason) => this.onWebSocketClose(code, reason));
+
+    this.ws.onopen = () => this.onWebSocketOpen();
+    this.ws.onmessage = (event) => this.onWebSocketMessage(event.data);
+    this.ws.onerror = (event) => this.onWebSocketError(event);
+    this.ws.onclose = (event) => this.onWebSocketClose(event.code, Buffer.from(event.reason));
   }
 
   /**
@@ -138,7 +138,6 @@ export default class ShardManager {
   public disconnect(): void {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
-
       this.heartbeatInterval = null;
     }
   }
@@ -495,12 +494,14 @@ export default class ShardManager {
 
   /**
    * Handles incoming messages from the websocket
-   * @param {RawData} data The raw data received from the websocket
+   * @param {string | Buffer | ArrayBuffer} data The raw data received from the websocket
    */
-  private onWebSocketMessage(data: RawData): void {
+  private onWebSocketMessage(data: string | Buffer | ArrayBuffer): void {
     const packet = JSON.parse(data.toString()) as GatewayReceivePayload;
 
-    if (packet.s) { this.sequence = packet.s; }
+    if (packet.s) {
+      this.sequence = packet.s;
+    }
 
     switch (packet.op) {
       case GatewayOpcodes.Dispatch:
@@ -609,12 +610,15 @@ export default class ShardManager {
 
   /**
    * Handles errors from the websocket
-   * @param {Error} err The error received from the websocket
+   * @param {Event} event The event received from the websocket
    */
-  private onWebSocketError(err: Error): void {
-    this.client.emit("shardError", { id: this.id, error: err });
+  private onWebSocketError(event: Event): void {
+    this.client.emit("shardError", {
+      id: this.id,
+      error: new Error(`WebSocket error occurred with type "${event.type}"`),
+    });
 
-    throw err;
+    throw new Error(`WebSocket error occurred on shard ${this.id}`);
   }
 
   /**
@@ -623,13 +627,27 @@ export default class ShardManager {
    * @param {Buffer} reason The reason received from the websocket
    */
   private onWebSocketClose(code: number, reason: Buffer): void {
-    if (code === 1000) { return; }
-    if (code === 3000) { return; }
-    if (code === GatewayCloseCodes.InvalidShard) { throw new Error("Invalid Shard"); }
-    if (code === GatewayCloseCodes.ShardingRequired) { throw new Error("Sharding Required"); }
-    if (code === GatewayCloseCodes.InvalidAPIVersion) { throw new Error("Invalid API Version"); }
-    if (code === GatewayCloseCodes.InvalidIntents) { throw new Error("Invalid intent(s)"); }
-    if (code === GatewayCloseCodes.DisallowedIntents) { throw new Error("Disallowed intent(s)"); }
+    if (code === 1000) {
+      return;
+    }
+    if (code === 3000) {
+      return;
+    }
+    if (code === GatewayCloseCodes.InvalidShard) {
+      throw new Error("Invalid Shard");
+    }
+    if (code === GatewayCloseCodes.ShardingRequired) {
+      throw new Error("Sharding Required");
+    }
+    if (code === GatewayCloseCodes.InvalidAPIVersion) {
+      throw new Error("Invalid API Version");
+    }
+    if (code === GatewayCloseCodes.InvalidIntents) {
+      throw new Error("Invalid intent(s)");
+    }
+    if (code === GatewayCloseCodes.DisallowedIntents) {
+      throw new Error("Disallowed intent(s)");
+    }
 
     if (code === 1001 || typeof code === "undefined" || code === 1006) {
       this.resumeWithUrl();
