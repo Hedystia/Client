@@ -1,5 +1,5 @@
 import type { GatewayGuildMemberAddDispatchData } from "discord-api-types/v10";
-import type Client from "@/client";
+import type Client from "../client";
 
 export default class GuildMemberAdd {
   client: Client;

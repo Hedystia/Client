@@ -1,24 +1,24 @@
 {
   "name": "@hedystia/discord",
   "version": "0.0.1",
-  "main": "src/index.ts",
-  "module": "src/index.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Hedystia/Client.git"
   },
-  "bugs": {
-    "url": "https://github.com/Hedystia/Client/issues"
-  },
-  "homepage": "https://github.com/Hedystia/Client",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
   "devDependencies": {
     "@biomejs/biome": "^2.0.5",
     "@types/bun": "^1.2.17",
     "discord-api-types": "^0.38.13"
   },
+  "bugs": {
+    "url": "https://github.com/Hedystia/Client/issues"
+  },
   "files": [
     "dist"
   ],
+  "homepage": "https://github.com/Hedystia/Client",
   "keywords": [
     "discord",
     "api",
@@ -28,17 +28,9 @@
     "ws",
     "bun"
   ],
-  "type": "module",
+  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
-  "peerDependencies": {
-    "ws": "latest"
-  },
-  "license": "MIT",
-  "peerDependenciesMeta": {
-    "ws": {
-      "optional": true
-    }
-  }
+  "type": "module"
 }

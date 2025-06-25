@@ -1,5 +1,5 @@
 import type { ActivityType, PresenceUpdateReceiveStatus } from "discord-api-types/v10";
-import type { default as GatewayIntents } from "@/utils/intents";
+import type { default as GatewayIntents } from "../utils/intents";
 
 interface GatewayActivity {
   name: string;

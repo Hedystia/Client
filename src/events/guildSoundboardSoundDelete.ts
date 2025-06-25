@@ -1,5 +1,5 @@
 import type { GatewayGuildSoundboardSoundDeleteDispatchData } from "discord-api-types/v10";
-import type Client from "@/client";
+import type Client from "../client";
 
 export default class GuildSoundboardSoundDelete {
   client: Client;

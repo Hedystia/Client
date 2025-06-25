@@ -1,4 +1,4 @@
-import type { CacheAPIGuild } from "@/types/Cache";
+import type { CacheAPIGuild } from "../types/Cache";
 
 class GuildStructure<T extends CacheAPIGuild = CacheAPIGuild> {
   constructor(data: T) {

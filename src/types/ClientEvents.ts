@@ -76,7 +76,7 @@ import type {
   GatewayVoiceStateUpdateDispatchData,
   GatewayWebhooksUpdateDispatchData,
 } from "discord-api-types/v10";
-import type { GuildStructureInstance } from "@/structures/GuildStructure";
+import type { GuildStructureInstance } from "../structures/GuildStructure";
 
 export interface ClientEvents {
   // APPLICATION

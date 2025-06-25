@@ -1,4 +1,5 @@
 import EventEmitter from "node:events";
+import type { WebSocketOptions } from "bun";
 import {
   type ActivityType,
   type APIGatewayBotInfo,
@@ -6,13 +7,12 @@ import {
   type PresenceUpdateReceiveStatus,
   PresenceUpdateStatus,
 } from "discord-api-types/v10";
-import type { ClientOptions as WebSocketOptions } from "ws";
-import GuildManager from "@/managers/GuildManager";
-import REST from "@/rest";
-import type { ClientEvents } from "@/types/ClientEvents";
-import type { Presence } from "@/types/Gateway";
-import { Routes } from "@/utils/constants";
-import type Intents from "@/utils/intents";
+import GuildManager from "../managers/GuildManager";
+import REST from "../rest";
+import type { ClientEvents } from "../types/ClientEvents";
+import type { Presence } from "../types/Gateway";
+import { Routes } from "../utils/constants";
+import type Intents from "../utils/intents";
 import ShardManager from "./ShardManager";
 
 export interface ClientOptions {

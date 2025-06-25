@@ -1,10 +1,10 @@
 import type { APIGuild } from "discord-api-types/v10";
-import type Client from "@/client";
-import type { GuildStructureInstance } from "@/structures/GuildStructure";
-import GuildStructure from "@/structures/GuildStructure";
-import type { CacheAPIGuild } from "@/types/Cache";
-import Cache from "@/utils/cache";
-import { Routes } from "@/utils/constants";
+import type Client from "../client";
+import type { GuildStructureInstance } from "../structures/GuildStructure";
+import GuildStructure from "../structures/GuildStructure";
+import type { CacheAPIGuild } from "../types/Cache";
+import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class GuildManager {
   client: Client;
