@@ -14,16 +14,21 @@
   "devDependencies": {
     "@biomejs/biome": "^2.0.5",
     "@types/bun": "^1.2.17",
-    "discord-api-types": "^0.38.13",
-    "tsup": "^8.5.0"
+    "discord-api-types": "^0.38.13"
   },
-  "files": ["dist"],
-  "keywords": ["discord", "api", "client", "typescript", "websocket", "ws", "bun"],
-  "type": "commonjs",
-  "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch"
-  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "discord",
+    "api",
+    "client",
+    "typescript",
+    "websocket",
+    "ws",
+    "bun"
+  ],
+  "type": "module",
   "publishConfig": {
     "access": "public"
   },
