@@ -1,5 +1,5 @@
 import {
-  ActivityFlags,
+  ActivityType,
   ApplicationCommandOptionType as ApplicationCommandOptionTypeData,
   CDNRoutes,
   ImageFormat as ImageFormatData,
@@ -7,7 +7,7 @@ import {
   Routes as RoutesData,
 } from "discord-api-types/v10";
 
-export const Activities = ActivityFlags;
+export const Activities = ActivityType;
 
 export const Status = PresenceUpdateStatus;
 
