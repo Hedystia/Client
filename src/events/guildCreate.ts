@@ -1,5 +1,6 @@
 import {
   type APIUnavailableGuild,
+  ChannelType,
   type GatewayGuildCreateDispatchData,
   GatewayOpcodes,
 } from "discord-api-types/v10";
@@ -37,7 +38,12 @@ export default class GuildCreate {
       enabled: true,
       force: false,
     });
-    this.client.channels.set(packet.id, packet.channels);
+    const categories = packet.channels.filter((c) => c.type === ChannelType.GuildCategory);
+    const textChannels = packet.channels.filter(
+      (c) => c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement,
+    );
+    this.client.categories.set(packet.id, categories);
+    this.client.channels.set(packet.id, textChannels);
     this.client.roles.set(packet.id, packet.roles);
     this.client.members.set(packet.id, packet.members);
     this.requestMembers(packet);

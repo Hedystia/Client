@@ -20,6 +20,7 @@ export default class GuildDelete {
 
     this.client.emit("guildDelete", cachedGuild ?? packet);
     this.client.channels.delete(packet.id);
+    this.client.categories.delete(packet.id);
     this.client.roles.delete(packet.id);
     this.client.members.delete(packet.id);
 
