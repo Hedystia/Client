@@ -208,12 +208,35 @@ export default class Client extends EventEmitter<ClientEvents> {
     return this.readyAt.getTime();
   }
 
+  get ping(): number {
+    if (this.shards.size === 0) {
+      return 0;
+    }
+
+    let totalPing = 0;
+    let activeShards = 0;
+
+    for (const [_, shard] of this.shards) {
+      if (shard.ping > 0) {
+        totalPing += shard.ping;
+        activeShards++;
+      }
+    }
+
+    return activeShards > 0 ? Math.round(totalPing / activeShards) : 0;
+  }
+
   /**
    * Updates the presence of the bot
    * @param {Partial<Pick<Presence, "activities" | "status">>} options The options to update the presence with
    * @link https://discord.com/developers/docs/topics/gateway#update-presence
    */
   updatePresence(options: Partial<Pick<Presence, "activities" | "status">>): void {
+    this.presence = {
+      ...this.presence,
+      ...options,
+    };
+
     for (const [_, shard] of this.shards) {
       shard.updatePresence(options);
     }
