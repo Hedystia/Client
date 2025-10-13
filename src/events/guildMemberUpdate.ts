@@ -22,7 +22,10 @@ export default class GuildMemberUpdate {
       members = [];
       this.client.members.set(guildId, members);
     }
-    if (!members.some((m) => m.user.id === packet.user.id)) {
+    const memberIndex = members.findIndex((m) => m.user.id === packet.user.id);
+    if (memberIndex !== -1) {
+      members[memberIndex] = packet as APIGuildMember;
+    } else {
       members.push(packet as APIGuildMember);
     }
     this.client.emit("guildMemberUpdate", packet);
