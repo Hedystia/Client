@@ -3,11 +3,12 @@ import type { WebSocketOptions } from "bun";
 import {
   type ActivityType,
   type APIGatewayBotInfo,
-  type APIGuildChannel,
+  type APIGuildCategoryChannel,
   type APIGuildMember,
+  type APINewsChannel,
   type APIRole,
+  type APITextChannel,
   type APIUser,
-  type ChannelType,
   type PresenceUpdateReceiveStatus,
   PresenceUpdateStatus,
 } from "discord-api-types/v10";
@@ -42,11 +43,8 @@ interface Activities {
   state?: string;
 }
 
-const categories = new Cache<string, APIGuildChannel<ChannelType.GuildCategory>[]>();
-const channels = new Cache<
-  string,
-  APIGuildChannel<ChannelType.GuildText | ChannelType.GuildAnnouncement>[]
->();
+const categories = new Cache<string, APIGuildCategoryChannel[]>();
+const channels = new Cache<string, (APITextChannel | APINewsChannel)[]>();
 const members = new Cache<string, APIGuildMember[]>();
 const roles = new Cache<string, APIRole[]>();
 
@@ -66,8 +64,8 @@ export default class Client extends EventEmitter<ClientEvents> {
   shardsCount: number | "auto";
   shards: Map<number, ShardManager>;
   private _guilds = new GuildManager(this);
-  categories: Cache<string, APIGuildChannel<ChannelType.GuildCategory>[]>;
-  channels: Cache<string, APIGuildChannel<ChannelType.GuildText | ChannelType.GuildAnnouncement>[]>;
+  categories: Cache<string, APIGuildCategoryChannel[]>;
+  channels: Cache<string, (APITextChannel | APINewsChannel)[]>;
   members: Cache<string, APIGuildMember[]>;
   roles: Cache<string, APIRole[]>;
 
