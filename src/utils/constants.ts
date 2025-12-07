@@ -7,6 +7,8 @@ import {
   Routes as RoutesData,
 } from "discord-api-types/v10";
 
+export * from "discord-api-types/v10";
+
 export const Activities = ActivityType;
 
 export const Status = PresenceUpdateStatus;
