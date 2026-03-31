@@ -19,6 +19,7 @@ import type { Presence } from "../types/Gateway";
 import Cache from "../utils/cache";
 import { Routes } from "../utils/constants";
 import type Intents from "../utils/intents";
+import VoiceManager from "../voice/VoiceManager";
 import ShardManager from "./ShardManager";
 
 export interface ClientOptions {
@@ -64,6 +65,7 @@ export default class Client extends EventEmitter<ClientEvents> {
   shardsCount: number | "auto";
   shards: Map<number, ShardManager>;
   private _guilds = new GuildManager(this);
+  private _voice = new VoiceManager(this);
   categories: Cache<string, APIGuildCategoryChannel[]>;
   channels: Cache<string, (APITextChannel | APINewsChannel)[]>;
   members: Cache<string, APIGuildMember[]>;
@@ -269,5 +271,13 @@ export default class Client extends EventEmitter<ClientEvents> {
    */
   get guilds(): GuildManager {
     return this._guilds;
+  }
+
+  /**
+   * Gets the voice manager
+   * @returns {VoiceManager} The voice manager
+   */
+  get voice(): VoiceManager {
+    return this._voice;
   }
 }
