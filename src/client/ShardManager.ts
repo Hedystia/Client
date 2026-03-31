@@ -8,8 +8,10 @@ import {
   type GatewayVoiceStateUpdateData,
   PresenceUpdateStatus,
 } from "discord-api-types/v10";
+import WebSocket from "ws";
 import type Client from "../client";
 import { GatewayError } from "../errors/Gateway";
+
 // Events
 import ApplicationCommandPermissionsUpdate from "../events/applicationCommandPermissionsUpdate";
 import AutoModerationActionExecution from "../events/autoModerationActionExecution";
@@ -90,11 +92,12 @@ import type { Identify, Presence } from "../types/Gateway";
 
 export default class ShardManager {
   id: number;
-  private heartbeatInterval: NodeJS.Timer | null;
-  private heartbeatTimeoutInterval: NodeJS.Timer | null;
-  private zombieConnectionTimeoutInterval: NodeJS.Timer | null;
+  private heartbeatInterval: NodeJS.Timeout | null;
+  private heartbeatTimeoutInterval: NodeJS.Timeout | null;
+  private zombieConnectionTimeoutInterval: NodeJS.Timeout | null;
+  private reconnectTimeout: NodeJS.Timeout | null;
   client: Client;
-  ws: WebSocket;
+  ws: WebSocket | null;
   sessionId: string | null;
   resumeGatewayUrl: string | null;
   ping = 0;
@@ -104,10 +107,12 @@ export default class ShardManager {
   sequence = 0;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private reconnectDelay = 1000;
+  private baseReconnectDelay = 1000;
   private connected = false;
   private connecting = false;
   private ready = false;
+  private packetsQueue: Array<() => void> = [];
+  private processingQueue = false;
 
   /**
    * Creates a new ShardManager
@@ -119,11 +124,12 @@ export default class ShardManager {
     this.heartbeatInterval = null;
     this.heartbeatTimeoutInterval = null;
     this.zombieConnectionTimeoutInterval = null;
+    this.reconnectTimeout = null;
     this.client = client;
     this.sessionId = null;
     this.resumeGatewayUrl = null;
     this.defaultUrl = "wss://gateway.discord.gg/?v=10&encoding=json";
-    this.ws = new WebSocket(this.defaultUrl);
+    this.ws = null;
   }
 
   /**
@@ -136,17 +142,24 @@ export default class ShardManager {
     }
 
     this.connecting = true;
+    this.connected = false;
 
-    if (url) {
-      this.ws = new WebSocket(url);
-    } else if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
-      this.ws = new WebSocket(this.defaultUrl);
+    const wsUrl =
+      url ||
+      (this.resumeGatewayUrl ? `${this.resumeGatewayUrl}/?v=10&encoding=json` : this.defaultUrl);
+
+    try {
+      this.ws = new WebSocket(wsUrl);
+
+      this.ws.on("open", () => this.onWebSocketOpen());
+      this.ws.on("message", (data: WebSocket.Data) => this.onWebSocketMessage(data));
+      this.ws.on("error", (error: Error) => this.onWebSocketError(error));
+      this.ws.on("close", (code: number, reason: Buffer) => this.onWebSocketClose(code, reason));
+    } catch (error) {
+      this.client.emit("shardError", { id: this.id, error: error as Error });
+      this.connecting = false;
+      this.scheduleReconnect();
     }
-
-    this.ws.onopen = () => this.onWebSocketOpen();
-    this.ws.onmessage = (event) => this.onWebSocketMessage(event.data);
-    this.ws.onerror = (event) => this.onWebSocketError(event);
-    this.ws.onclose = (event) => this.onWebSocketClose(event.code, Buffer.from(event.reason));
   }
 
   /**
@@ -158,6 +171,16 @@ export default class ShardManager {
     this.connecting = false;
     this.ready = false;
 
+    this.clearTimers();
+
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.close(1000, "Client disconnect");
+    }
+
+    this.ws = null;
+  }
+
+  private clearTimers(): void {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
@@ -173,8 +196,9 @@ export default class ShardManager {
       this.zombieConnectionTimeoutInterval = null;
     }
 
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.close(1000);
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
     }
   }
 
@@ -183,8 +207,20 @@ export default class ShardManager {
       clearInterval(this.heartbeatInterval);
     }
 
+    const jitter = Math.random();
+    const initialDelay = interval * jitter;
+
+    setTimeout(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.sendHeartbeat();
+        this.startHeartbeatLoop(interval);
+      }
+    }, initialDelay);
+  }
+
+  private startHeartbeatLoop(interval: number): void {
     this.heartbeatInterval = setInterval(() => {
-      if (this.ws.readyState === WebSocket.OPEN) {
+      if (this.ws?.readyState === WebSocket.OPEN) {
         this.sendHeartbeat();
         this.checkHeartbeatAck();
       }
@@ -210,10 +246,10 @@ export default class ShardManager {
   private handleZombieConnection(): void {
     this.client.emit("shardDisconnect", { id: this.id, code: 4000 });
     this.disconnect();
-    this.reconnect();
+    this.scheduleReconnect();
   }
 
-  private reconnect(): void {
+  private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       this.client.emit("shardError", {
         id: this.id,
@@ -222,30 +258,70 @@ export default class ShardManager {
       return;
     }
 
-    const delay = this.reconnectDelay * 2 ** this.reconnectAttempts;
+    // Exponential backoff with jitter
+    const baseDelay = this.baseReconnectDelay * 2 ** this.reconnectAttempts;
+    const jitter = Math.random() * 1000;
+    const delay = Math.min(baseDelay + jitter, 30000);
     this.reconnectAttempts++;
 
-    setTimeout(
-      () => {
-        this.client.emit("shardReconnecting", this.id);
+    this.client.emit("shardReconnecting", this.id);
 
-        if (this.sessionId && this.resumeGatewayUrl) {
-          this.resumeWithUrl();
-        } else {
-          this.connect();
+    this.reconnectTimeout = setTimeout(() => {
+      if (this.sessionId && this.resumeGatewayUrl) {
+        this.connect();
+      } else {
+        this.connect();
+      }
+    }, delay);
+  }
+
+  private processQueue(): void {
+    if (this.processingQueue || this.packetsQueue.length === 0) {
+      return;
+    }
+
+    this.processingQueue = true;
+
+    while (this.packetsQueue.length > 0 && this.ws?.readyState === WebSocket.OPEN) {
+      const packet = this.packetsQueue.shift();
+      if (packet) {
+        packet();
+      }
+    }
+
+    this.processingQueue = false;
+  }
+
+  private sendPacket(packet: unknown): void {
+    const payload = JSON.stringify(packet);
+
+    if (Buffer.byteLength(payload) > 4096) {
+      this.client.emit("shardError", {
+        id: this.id,
+        error: new Error(
+          `Payload exceeds maximum size of 4096 bytes (${Buffer.byteLength(payload)} bytes)`,
+        ),
+      });
+      return;
+    }
+
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(payload);
+    } else {
+      this.packetsQueue.push(() => {
+        if (this.ws?.readyState === WebSocket.OPEN) {
+          this.ws.send(payload);
         }
-      },
-      Math.min(delay, 30000),
-    );
+      });
+      this.processQueue();
+    }
   }
 
   public heartbeat(lastSequence: number | null): void {
-    this.ws.send(
-      JSON.stringify({
-        op: GatewayOpcodes.Heartbeat,
-        d: lastSequence,
-      }),
-    );
+    this.sendPacket({
+      op: GatewayOpcodes.Heartbeat,
+      d: lastSequence,
+    });
   }
 
   /**
@@ -254,24 +330,22 @@ export default class ShardManager {
    * @link https://discord.com/developers/docs/topics/gateway#identify
    */
   public identify(options: Identify): void {
-    this.ws.send(
-      JSON.stringify({
-        op: GatewayOpcodes.Identify,
-        d: {
-          token: options.token,
-          properties: {
-            os: options.properties.os,
-            browser: options.properties.browser,
-            device: options.properties.device,
-          },
-          compress: options.compress,
-          large_threshold: options.largeThreshold,
-          shard: options.shard,
-          presence: options.presence,
-          intents: options.intents,
+    this.sendPacket({
+      op: GatewayOpcodes.Identify,
+      d: {
+        token: options.token,
+        properties: {
+          os: options.properties.os,
+          browser: options.properties.browser,
+          device: options.properties.device,
         },
-      }),
-    );
+        compress: options.compress,
+        large_threshold: options.largeThreshold,
+        shard: options.shard,
+        presence: options.presence,
+        intents: options.intents,
+      },
+    });
   }
 
   /**
@@ -603,10 +677,21 @@ export default class ShardManager {
 
   /**
    * Handles incoming messages from the websocket
-   * @param {string | Buffer | ArrayBuffer} data The raw data received from the websocket
+   * @param {WebSocket.Data} data The raw data received from the websocket
    */
-  private onWebSocketMessage(data: string | Buffer | ArrayBuffer): void {
-    const packet = JSON.parse(data.toString()) as GatewayReceivePayload;
+  private onWebSocketMessage(data: WebSocket.Data): void {
+    let packet: GatewayReceivePayload;
+
+    try {
+      const stringData = data.toString();
+      packet = JSON.parse(stringData) as GatewayReceivePayload;
+    } catch (error) {
+      this.client.emit("shardError", {
+        id: this.id,
+        error: new Error(`Failed to parse gateway packet: ${(error as Error).message}`),
+      });
+      return;
+    }
 
     if (packet.s) {
       this.sequence = packet.s;
@@ -622,22 +707,24 @@ export default class ShardManager {
         this.disconnect();
         this.connect();
         break;
-      case GatewayOpcodes.InvalidSession:
+      case GatewayOpcodes.InvalidSession: {
         this.client.emit("invalidSession");
-        this.sessionId = null;
-        this.resumeGatewayUrl = null;
-        setTimeout(
-          () => {
-            this.disconnect();
-            this.connect();
-          },
-          Math.random() * 5000 + 1000,
-        );
+        const canResume = packet.d as boolean;
+        if (canResume) {
+          setTimeout(() => this.connect(), 1000 + Math.random() * 5000);
+        } else {
+          this.sessionId = null;
+          this.resumeGatewayUrl = null;
+          this.sequence = 0;
+          setTimeout(() => this.connect(), 1000 + Math.random() * 5000);
+        }
         break;
+      }
       case GatewayOpcodes.Hello:
         {
-          this.startHeartbeat(packet.d.heartbeat_interval);
-          this.client.emit("hello", packet.d.heartbeat_interval, this.id);
+          const helloData = packet.d as { heartbeat_interval: number };
+          this.startHeartbeat(helloData.heartbeat_interval);
+          this.client.emit("hello", helloData.heartbeat_interval, this.id);
         }
         break;
       case GatewayOpcodes.HeartbeatAck:
@@ -663,14 +750,12 @@ export default class ShardManager {
    * @link https://discord.com/developers/docs/topics/gateway#heartbeating
    */
   sendHeartbeat(): void {
-    if (this.ws.readyState === WebSocket.OPEN) {
+    if (this.ws?.readyState === WebSocket.OPEN) {
       this.lastHeartbeat = Date.now();
-      this.ws.send(
-        JSON.stringify({
-          op: GatewayOpcodes.Heartbeat,
-          d: this.sequence,
-        }),
-      );
+      this.sendPacket({
+        op: GatewayOpcodes.Heartbeat,
+        d: this.sequence,
+      });
     }
   }
 
@@ -729,12 +814,12 @@ export default class ShardManager {
 
   /**
    * Handles errors from the websocket
-   * @param {Event} event The event received from the websocket
+   * @param {Error} error The error received from the websocket
    */
-  private onWebSocketError(event: Event): void {
+  private onWebSocketError(error: Error): void {
     this.client.emit("shardError", {
       id: this.id,
-      error: new Error(`WebSocket error occurred with type "${event.type}"`),
+      error,
     });
   }
 
@@ -748,47 +833,49 @@ export default class ShardManager {
     this.connecting = false;
     this.ready = false;
 
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
+    this.clearTimers();
 
-    if (this.heartbeatTimeoutInterval) {
-      clearTimeout(this.heartbeatTimeoutInterval);
-      this.heartbeatTimeoutInterval = null;
-    }
-
+    // Clean close
     if (code === 1000) {
       return;
     }
+
+    // Normal close from Discord
     if (code === 3000) {
       return;
     }
+
+    // Fatal errors - don't reconnect
     if (code === GatewayCloseCodes.InvalidShard) {
-      throw new Error("Invalid Shard");
+      throw new GatewayError(code, reason.toString() || "Invalid Shard");
     }
     if (code === GatewayCloseCodes.ShardingRequired) {
-      throw new Error("Sharding Required");
+      throw new GatewayError(code, reason.toString() || "Sharding Required");
     }
     if (code === GatewayCloseCodes.InvalidAPIVersion) {
-      throw new Error("Invalid API Version");
+      throw new GatewayError(code, reason.toString() || "Invalid API Version");
     }
     if (code === GatewayCloseCodes.InvalidIntents) {
-      throw new Error("Invalid intent(s)");
+      throw new GatewayError(code, reason.toString() || "Invalid intent(s)");
     }
     if (code === GatewayCloseCodes.DisallowedIntents) {
-      throw new Error("Disallowed intent(s)");
+      throw new GatewayError(code, reason.toString() || "Disallowed intent(s)");
+    }
+    if (code === GatewayCloseCodes.AuthenticationFailed) {
+      throw new GatewayError(code, reason.toString() || "Authentication Failed");
     }
 
+    // Network errors - reconnect
     if (code === 1001 || typeof code === "undefined" || code === 1006) {
-      this.reconnect();
+      this.client.emit("shardDisconnect", { id: this.id, code });
+      this.scheduleReconnect();
       return;
     }
 
     this.client.emit("shardDisconnect", { id: this.id, code });
 
     if (this.shouldReconnect(code)) {
-      this.reconnect();
+      this.scheduleReconnect();
       return;
     }
 
@@ -803,24 +890,14 @@ export default class ShardManager {
    * @link https://discord.com/developers/docs/topics/gateway#resume
    */
   resume(options: { token: string; sessionId: string; seq: number }): void {
-    this.ws.send(
-      JSON.stringify({
-        op: GatewayOpcodes.Resume,
-        d: {
-          token: options.token,
-          session_id: options.sessionId,
-          seq: options.seq,
-        },
-      }),
-    );
-  }
-
-  /**
-   * Resumes the session with the url
-   * @link https://discord.com/developers/docs/topics/gateway#resuming
-   */
-  resumeWithUrl(): void {
-    this.connect(`${this.resumeGatewayUrl}/?v=10&encoding=json`);
+    this.sendPacket({
+      op: GatewayOpcodes.Resume,
+      d: {
+        token: options.token,
+        session_id: options.sessionId,
+        seq: options.seq,
+      },
+    });
   }
 
   /**
@@ -829,21 +906,19 @@ export default class ShardManager {
    * @link https://discord.com/developers/docs/topics/gateway#update-presence
    */
   updatePresence(options: Partial<Pick<Presence, "activities" | "status">>): void {
-    if (this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(
-        JSON.stringify({
-          op: GatewayOpcodes.PresenceUpdate,
-          d: {
-            activities: options.activities?.map((activity) => ({
-              name: activity.type === ActivityType.Custom ? "Custom Status" : activity.name,
-              type: activity.type,
-              url: activity.url,
-              state: activity.state,
-            })),
-            status: options.status ?? PresenceUpdateStatus.Online,
-          },
-        }),
-      );
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.sendPacket({
+        op: GatewayOpcodes.PresenceUpdate,
+        d: {
+          activities: options.activities?.map((activity) => ({
+            name: activity.type === ActivityType.Custom ? "Custom Status" : activity.name,
+            type: activity.type,
+            url: activity.url,
+            state: activity.state,
+          })),
+          status: options.status ?? PresenceUpdateStatus.Online,
+        },
+      });
     }
   }
 
@@ -853,18 +928,40 @@ export default class ShardManager {
    * @link https://discord.com/developers/docs/topics/gateway#update-voice-state
    */
   updateVoiceState(options: GatewayVoiceStateUpdateData): void {
-    if (this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(
-        JSON.stringify({
-          op: GatewayOpcodes.VoiceStateUpdate,
-          d: {
-            guild_id: options.guild_id,
-            channel_id: options.channel_id,
-            self_mute: options.self_mute,
-            self_deaf: options.self_deaf,
-          },
-        }),
-      );
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.sendPacket({
+        op: GatewayOpcodes.VoiceStateUpdate,
+        d: {
+          guild_id: options.guild_id,
+          channel_id: options.channel_id,
+          self_mute: options.self_mute,
+          self_deaf: options.self_deaf,
+        },
+      });
     }
+  }
+
+  /**
+   * Gets the current ping of the shard
+   * @returns {number} The ping in milliseconds
+   */
+  getPing(): number {
+    return this.ping;
+  }
+
+  /**
+   * Checks if the shard is connected
+   * @returns {boolean} Whether the shard is connected
+   */
+  isConnected(): boolean {
+    return this.connected && this.ws?.readyState === WebSocket.OPEN;
+  }
+
+  /**
+   * Checks if the shard is ready
+   * @returns {boolean} Whether the shard is ready
+   */
+  isReady(): boolean {
+    return this.ready && this.isConnected();
   }
 }
