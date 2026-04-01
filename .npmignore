@@ -1,5 +1,8 @@
-src/
+node_modules
+bun.lock
 tsconfig.json
-tsup.config.ts
+src
 .npmignore
-.vscode
+tsdown.config.ts
+!dist
+.turbo
