@@ -4,12 +4,12 @@ interface RESTClient {
   version: number;
 }
 
-interface RequestOptions extends RequestInit {
+interface RequestOptions {
+  method?: string;
   query?: Record<string, string | string[]>;
   reason?: string;
   headers?: Record<string, string>;
-  // biome-ignore lint/suspicious/noExplicitAny: false
-  body?: any;
+  body?: unknown;
   throwError?: boolean;
 }
 
