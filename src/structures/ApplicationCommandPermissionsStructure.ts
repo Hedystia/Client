@@ -1,0 +1,43 @@
+import type { GatewayApplicationCommandPermissionsUpdateDispatchData } from "discord-api-types/v10";
+import type Client from "../client";
+
+class ApplicationCommandPermissionsStructure<
+  T extends
+    GatewayApplicationCommandPermissionsUpdateDispatchData = GatewayApplicationCommandPermissionsUpdateDispatchData,
+> {
+  public readonly client: Client;
+
+  constructor(data: T, client: Client) {
+    Object.assign(this, data);
+    this.client = client;
+  }
+
+  public get id(): string {
+    return (this as unknown as GatewayApplicationCommandPermissionsUpdateDispatchData).id;
+  }
+
+  public get applicationId(): string {
+    return (this as unknown as GatewayApplicationCommandPermissionsUpdateDispatchData)
+      .application_id;
+  }
+
+  public get guildId(): string {
+    return (this as unknown as GatewayApplicationCommandPermissionsUpdateDispatchData).guild_id;
+  }
+
+  public get permissions(): Array<{ id: string; type: number; permission: boolean }> {
+    return (this as unknown as GatewayApplicationCommandPermissionsUpdateDispatchData).permissions;
+  }
+}
+
+export default ApplicationCommandPermissionsStructure as new <
+  T extends
+    GatewayApplicationCommandPermissionsUpdateDispatchData = GatewayApplicationCommandPermissionsUpdateDispatchData,
+>(
+  data: T,
+  client: Client,
+) => ApplicationCommandPermissionsStructure<T> & T & { readonly client: Client };
+
+export type ApplicationCommandPermissionsStructureInstance =
+  ApplicationCommandPermissionsStructure &
+    GatewayApplicationCommandPermissionsUpdateDispatchData & { readonly client: Client };
