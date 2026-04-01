@@ -1,161 +1,132 @@
 import { EventEmitter } from "node:events";
 import type {
   APIUnavailableGuild,
-  GatewayApplicationCommandPermissionsUpdateDispatchData,
-  GatewayAutoModerationActionExecutionDispatchData,
-  GatewayAutoModerationRuleCreateDispatchData,
-  GatewayAutoModerationRuleDeleteDispatchData,
-  GatewayAutoModerationRuleUpdateDispatchData,
-  GatewayChannelCreateDispatchData,
-  GatewayChannelDeleteDispatchData,
-  GatewayChannelPinsUpdateDispatchData,
-  GatewayChannelUpdateDispatchData,
   GatewayDispatchPayload,
-  GatewayEntitlementCreateDispatchData,
-  GatewayEntitlementDeleteDispatchData,
-  GatewayEntitlementUpdateDispatchData,
-  GatewayGuildAuditLogEntryCreateDispatchData,
-  GatewayGuildBanAddDispatchData,
-  GatewayGuildBanRemoveDispatchData,
-  GatewayGuildCreateDispatchData,
-  GatewayGuildDeleteDispatchData,
   GatewayGuildEmojisUpdateDispatchData,
   GatewayGuildIntegrationsUpdateDispatchData,
-  GatewayGuildMemberAddDispatchData,
-  GatewayGuildMemberRemoveDispatchData,
   GatewayGuildMembersChunkDispatchData,
-  GatewayGuildMemberUpdateDispatchData,
-  GatewayGuildRoleCreateDispatchData,
-  GatewayGuildRoleDeleteDispatchData,
-  GatewayGuildRoleUpdateDispatchData,
-  GatewayGuildScheduledEventCreateDispatchData,
-  GatewayGuildScheduledEventDeleteDispatchData,
-  GatewayGuildScheduledEventUpdateDispatchData,
   GatewayGuildScheduledEventUserAddDispatchData,
   GatewayGuildScheduledEventUserRemoveDispatchData,
-  GatewayGuildSoundboardSoundCreateDispatchData,
-  GatewayGuildSoundboardSoundDeleteDispatchData,
   GatewayGuildSoundboardSoundsUpdateDispatchData,
   GatewayGuildSoundboardSoundUpdateDispatchData,
   GatewayGuildStickersUpdateDispatchData,
-  GatewayGuildUpdateDispatchData,
-  GatewayIntegrationCreateDispatchData,
-  GatewayIntegrationDeleteDispatchData,
-  GatewayIntegrationUpdateDispatchData,
   GatewayInteractionCreateDispatchData,
-  GatewayInviteCreateDispatchData,
-  GatewayInviteDeleteDispatchData,
-  GatewayMessageCreateDispatchData,
   GatewayMessageDeleteBulkDispatchData,
   GatewayMessageDeleteDispatchData,
-  GatewayMessagePollVoteDispatchData,
-  GatewayMessageReactionAddDispatchData,
   GatewayMessageReactionRemoveAllDispatchData,
-  GatewayMessageReactionRemoveDispatchData,
   GatewayMessageReactionRemoveEmojiDispatchData,
-  GatewayMessageUpdateDispatchData,
-  GatewayPresenceUpdateDispatchData,
   GatewayReadyDispatchData,
   GatewaySoundboardSoundsDispatchData,
-  GatewayStageInstanceCreateDispatchData,
-  GatewayStageInstanceDeleteDispatchData,
-  GatewayStageInstanceUpdateDispatchData,
-  GatewaySubscriptionCreateDispatchData,
-  GatewaySubscriptionDeleteDispatchData,
-  GatewaySubscriptionUpdateDispatchData,
-  GatewayThreadCreateDispatchData,
-  GatewayThreadDeleteDispatchData,
-  GatewayThreadListSyncDispatchData,
-  GatewayThreadMembersUpdateDispatchData,
-  GatewayThreadMemberUpdateDispatchData,
-  GatewayThreadUpdateDispatchData,
-  GatewayTypingStartDispatchData,
-  GatewayUserUpdateDispatchData,
-  GatewayVoiceChannelEffectSendDispatchData,
-  GatewayVoiceServerUpdateDispatchData,
-  GatewayVoiceStateUpdateDispatchData,
-  GatewayWebhooksUpdateDispatchData,
 } from "discord-api-types/v10";
+import type { ApplicationCommandPermissionsStructureInstance } from "../structures/ApplicationCommandPermissionsStructure";
+import type { AuditLogEntryStructureInstance } from "../structures/AuditLogEntryStructure";
+import type { AutoModerationActionStructureInstance } from "../structures/AutoModerationActionStructure";
+import type { AutoModerationRuleStructureInstance } from "../structures/AutoModerationRuleStructure";
+import type { ChannelPinsStructureInstance } from "../structures/ChannelPinsStructure";
+import type { ChannelStructureInstance } from "../structures/ChannelStructure";
+import type { EntitlementStructureInstance } from "../structures/EntitlementStructure";
+import type { GuildBanStructureInstance } from "../structures/GuildBanStructure";
+import type { GuildScheduledEventStructureInstance } from "../structures/GuildScheduledEventStructure";
+import type { GuildSoundboardSoundStructureInstance } from "../structures/GuildSoundboardSoundStructure";
 import type { GuildStructureInstance } from "../structures/GuildStructure";
+import type { IntegrationStructureInstance } from "../structures/IntegrationStructure";
+import type { InviteStructureInstance } from "../structures/InviteStructure";
+import type { MemberStructureInstance } from "../structures/MemberStructure";
+import type { MessagePollVoteStructureInstance } from "../structures/MessagePollVoteStructure";
+import type { MessageReactionStructureInstance } from "../structures/MessageReactionStructure";
+import type { MessageStructureInstance } from "../structures/MessageStructure";
+import type { PresenceStructureInstance } from "../structures/PresenceStructure";
+import type { RoleStructureInstance } from "../structures/RoleStructure";
+import type { StageInstanceStructureInstance } from "../structures/StageInstanceStructure";
+import type { SubscriptionStructureInstance } from "../structures/SubscriptionStructure";
+import type { ThreadListSyncStructureInstance } from "../structures/ThreadListSyncStructure";
+import type { ThreadMemberStructureInstance } from "../structures/ThreadMemberStructure";
+import type { ThreadMembersStructureInstance } from "../structures/ThreadMembersStructure";
+import type { TypingStartStructureInstance } from "../structures/TypingStartStructure";
+import type { UserStructureInstance } from "../structures/UserStructure";
+import type { VoiceChannelEffectSendStructureInstance } from "../structures/VoiceChannelEffectSendStructure";
+import type { VoiceServerUpdateStructureInstance } from "../structures/VoiceServerUpdateStructure";
+import type { VoiceStateStructureInstance } from "../structures/VoiceStateStructure";
+import type { WebhookStructureInstance } from "../structures/WebhookStructure";
 
 export interface ClientEvents {
   // APPLICATION
-  applicationCommandPermissionsUpdate: [GatewayApplicationCommandPermissionsUpdateDispatchData];
+  applicationCommandPermissionsUpdate: [ApplicationCommandPermissionsStructureInstance];
 
   // AUTO MODERATION
-  autoModerationActionExecution: [GatewayAutoModerationActionExecutionDispatchData];
-  autoModerationRuleCreate: [GatewayAutoModerationRuleCreateDispatchData];
-  autoModerationRuleDelete: [GatewayAutoModerationRuleDeleteDispatchData];
-  autoModerationRuleUpdate: [GatewayAutoModerationRuleUpdateDispatchData];
+  autoModerationActionExecution: [AutoModerationActionStructureInstance];
+  autoModerationRuleCreate: [AutoModerationRuleStructureInstance];
+  autoModerationRuleDelete: [AutoModerationRuleStructureInstance];
+  autoModerationRuleUpdate: [AutoModerationRuleStructureInstance];
 
   // CHANNEL
-  channelCreate: [GatewayChannelCreateDispatchData];
-  channelDelete: [GatewayChannelDeleteDispatchData];
-  channelPinsUpdate: [GatewayChannelPinsUpdateDispatchData];
-  channelUpdate: [GatewayChannelUpdateDispatchData];
+  channelCreate: [ChannelStructureInstance];
+  channelDelete: [ChannelStructureInstance];
+  channelPinsUpdate: [ChannelPinsStructureInstance];
+  channelUpdate: [ChannelStructureInstance];
 
   // ENTITLEMENT
-  entitlementCreate: [GatewayEntitlementCreateDispatchData];
-  entitlementDelete: [GatewayEntitlementDeleteDispatchData];
-  entitlementUpdate: [GatewayEntitlementUpdateDispatchData];
+  entitlementCreate: [EntitlementStructureInstance];
+  entitlementDelete: [EntitlementStructureInstance];
+  entitlementUpdate: [EntitlementStructureInstance];
 
   // GUILD
-  guildAuditLogEntryCreate: [GatewayGuildAuditLogEntryCreateDispatchData];
-  guildBanAdd: [GatewayGuildBanAddDispatchData];
-  guildBanRemove: [GatewayGuildBanRemoveDispatchData];
-  guildCreate: [GatewayGuildCreateDispatchData];
-  guildDelete: [GuildStructureInstance | GatewayGuildDeleteDispatchData];
+  guildAuditLogEntryCreate: [AuditLogEntryStructureInstance];
+  guildBanAdd: [GuildBanStructureInstance];
+  guildBanRemove: [GuildBanStructureInstance];
+  guildCreate: [GuildStructureInstance];
+  guildDelete: [GuildStructureInstance];
   guildEmojisUpdate: [GatewayGuildEmojisUpdateDispatchData];
   guildIntegrationsUpdate: [GatewayGuildIntegrationsUpdateDispatchData];
-  guildMemberAdd: [GatewayGuildMemberAddDispatchData];
-  guildMemberRemove: [GatewayGuildMemberRemoveDispatchData];
+  guildMemberAdd: [MemberStructureInstance];
+  guildMemberRemove: [MemberStructureInstance];
   guildMembersChunk: [GatewayGuildMembersChunkDispatchData];
-  guildMemberUpdate: [GatewayGuildMemberUpdateDispatchData];
-  guildRoleCreate: [GatewayGuildRoleCreateDispatchData];
-  guildRoleDelete: [GatewayGuildRoleDeleteDispatchData];
-  guildRoleUpdate: [GatewayGuildRoleUpdateDispatchData];
-  guildScheduledEventCreate: [GatewayGuildScheduledEventCreateDispatchData];
-  guildScheduledEventDelete: [GatewayGuildScheduledEventDeleteDispatchData];
-  guildScheduledEventUpdate: [GatewayGuildScheduledEventUpdateDispatchData];
+  guildMemberUpdate: [MemberStructureInstance];
+  guildRoleCreate: [RoleStructureInstance];
+  guildRoleDelete: [RoleStructureInstance];
+  guildRoleUpdate: [RoleStructureInstance];
+  guildScheduledEventCreate: [GuildScheduledEventStructureInstance];
+  guildScheduledEventDelete: [GuildScheduledEventStructureInstance];
+  guildScheduledEventUpdate: [GuildScheduledEventStructureInstance];
   guildScheduledEventUserAdd: [GatewayGuildScheduledEventUserAddDispatchData];
   guildScheduledEventUserRemove: [GatewayGuildScheduledEventUserRemoveDispatchData];
-  guildSoundboardSoundCreate: [GatewayGuildSoundboardSoundCreateDispatchData];
-  guildSoundboardSoundDelete: [GatewayGuildSoundboardSoundDeleteDispatchData];
+  guildSoundboardSoundCreate: [GuildSoundboardSoundStructureInstance];
+  guildSoundboardSoundDelete: [GuildSoundboardSoundStructureInstance];
   guildSoundboardSoundsUpdate: [GatewayGuildSoundboardSoundsUpdateDispatchData];
   guildSoundboardSoundUpdate: [GatewayGuildSoundboardSoundUpdateDispatchData];
   guildStickersUpdate: [GatewayGuildStickersUpdateDispatchData];
   guildUnavailable: [APIUnavailableGuild];
-  guildUpdate: [GatewayGuildUpdateDispatchData];
+  guildUpdate: [GuildStructureInstance];
 
   // SOUNDBOARD
   soundboardSounds: [GatewaySoundboardSoundsDispatchData];
 
   // INTEGRATION
-  integrationCreate: [GatewayIntegrationCreateDispatchData];
-  integrationDelete: [GatewayIntegrationDeleteDispatchData];
-  integrationUpdate: [GatewayIntegrationUpdateDispatchData];
+  integrationCreate: [IntegrationStructureInstance];
+  integrationDelete: [IntegrationStructureInstance];
+  integrationUpdate: [IntegrationStructureInstance];
 
   // INTERACTION
   interactionCreate: [GatewayInteractionCreateDispatchData];
 
   // INVITE
-  inviteCreate: [GatewayInviteCreateDispatchData];
-  inviteDelete: [GatewayInviteDeleteDispatchData];
+  inviteCreate: [InviteStructureInstance];
+  inviteDelete: [InviteStructureInstance];
 
   // MESSAGE
-  messageCreate: [GatewayMessageCreateDispatchData];
+  messageCreate: [MessageStructureInstance];
   messageDelete: [GatewayMessageDeleteDispatchData];
   messageDeleteBulk: [GatewayMessageDeleteBulkDispatchData];
-  messagePollVoteAdd: [GatewayMessagePollVoteDispatchData];
-  messagePollVoteRemove: [GatewayMessagePollVoteDispatchData];
-  messageReactionAdd: [GatewayMessageReactionAddDispatchData];
-  messageReactionRemove: [GatewayMessageReactionRemoveDispatchData];
+  messagePollVoteAdd: [MessagePollVoteStructureInstance];
+  messagePollVoteRemove: [MessagePollVoteStructureInstance];
+  messageReactionAdd: [MessageReactionStructureInstance];
+  messageReactionRemove: [MessageReactionStructureInstance];
   messageReactionRemoveAll: [GatewayMessageReactionRemoveAllDispatchData];
   messageReactionRemoveEmoji: [GatewayMessageReactionRemoveEmojiDispatchData];
-  messageUpdate: [GatewayMessageUpdateDispatchData];
+  messageUpdate: [MessageStructureInstance];
 
   // PRESENCE
-  presenceUpdate: [GatewayPresenceUpdateDispatchData];
+  presenceUpdate: [PresenceStructureInstance];
 
   // READY
   ready: [GatewayReadyDispatchData];
@@ -164,36 +135,36 @@ export interface ClientEvents {
   resumed: [];
 
   // STAGE
-  stageInstanceCreate: [GatewayStageInstanceCreateDispatchData];
-  stageInstanceDelete: [GatewayStageInstanceDeleteDispatchData];
-  stageInstanceUpdate: [GatewayStageInstanceUpdateDispatchData];
+  stageInstanceCreate: [StageInstanceStructureInstance];
+  stageInstanceDelete: [StageInstanceStructureInstance];
+  stageInstanceUpdate: [StageInstanceStructureInstance];
 
   // SUBSCRIPTION
-  subscriptionCreate: [GatewaySubscriptionCreateDispatchData];
-  subscriptionDelete: [GatewaySubscriptionDeleteDispatchData];
-  subscriptionUpdate: [GatewaySubscriptionUpdateDispatchData];
+  subscriptionCreate: [SubscriptionStructureInstance];
+  subscriptionDelete: [SubscriptionStructureInstance];
+  subscriptionUpdate: [SubscriptionStructureInstance];
 
   // THREAD
-  threadCreate: [GatewayThreadCreateDispatchData];
-  threadDelete: [GatewayThreadDeleteDispatchData];
-  threadListSync: [GatewayThreadListSyncDispatchData];
-  threadMembersUpdate: [GatewayThreadMembersUpdateDispatchData];
-  threadMemberUpdate: [GatewayThreadMemberUpdateDispatchData];
-  threadUpdate: [GatewayThreadUpdateDispatchData];
+  threadCreate: [ChannelStructureInstance];
+  threadDelete: [ChannelStructureInstance];
+  threadListSync: [ThreadListSyncStructureInstance];
+  threadMembersUpdate: [ThreadMembersStructureInstance];
+  threadMemberUpdate: [ThreadMemberStructureInstance];
+  threadUpdate: [ChannelStructureInstance];
 
   // TYPING
-  typingStart: [GatewayTypingStartDispatchData];
+  typingStart: [TypingStartStructureInstance];
 
   // USER
-  userUpdate: [GatewayUserUpdateDispatchData];
+  userUpdate: [UserStructureInstance];
 
   // VOICE
-  voiceChannelEffectSend: [GatewayVoiceChannelEffectSendDispatchData];
-  voiceServerUpdate: [GatewayVoiceServerUpdateDispatchData];
-  voiceStateUpdate: [GatewayVoiceStateUpdateDispatchData];
+  voiceChannelEffectSend: [VoiceChannelEffectSendStructureInstance];
+  voiceServerUpdate: [VoiceServerUpdateStructureInstance];
+  voiceStateUpdate: [VoiceStateStructureInstance];
 
   // WEBHOOK
-  webhooksUpdate: [GatewayWebhooksUpdateDispatchData];
+  webhooksUpdate: [WebhookStructureInstance];
 
   // DISPATCH
   dispatch: [GatewayDispatchPayload, number];
@@ -208,6 +179,7 @@ export interface ClientEvents {
   shardDisconnect: [{ id: number; code: number }];
   shardReconnecting: [number];
   shardError: [{ id: number; error: Error }];
+  shardRateLimited: [{ id: number; delay?: number; resetAfter?: number }];
 }
 
 export default class Client extends EventEmitter {
