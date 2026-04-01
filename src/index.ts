@@ -1,6 +1,12 @@
+export * from "./builders";
 export { default as Client } from "./client";
+export * from "./collectors";
+export * from "./managers";
 export { default as REST } from "./rest";
-export { default as Cache } from "./utils/cache";
+export * from "./structures";
+export { Collection } from "./utils/Collection";
+export type { CacheOptions } from "./utils/cache";
+export { Cache } from "./utils/cache";
 export * from "./utils/constants";
 export { default as Intents } from "./utils/intents";
 export * from "./voice";
