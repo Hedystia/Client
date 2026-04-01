@@ -13,6 +13,7 @@ import type {
 import type Client from "../client";
 import type { MessageCollectorOptions } from "../collectors/MessageCollector";
 import MessageCollector from "../collectors/MessageCollector";
+import { Routes } from "../utils/constants";
 import type { MessageStructureInstance } from "./MessageStructure";
 import MessageStructure from "./MessageStructure";
 
@@ -118,7 +119,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
   /**
    * Sends a message to the channel
    * @param content - The content to send
-   * @returns A promise that resolves to the sent message
+   * @returns A promise that resolves to the sent message or null
    */
   public async send(
     content:
@@ -131,7 +132,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
     const body = typeof content === "string" ? { content } : content;
 
-    const message = (await this.client.rest.post(`/channels/${channel.id}/messages`, {
+    const message = (await this.client.rest.post(Routes.channelMessages(channel.id), {
       body,
     })) as APIMessage | null;
 
@@ -170,7 +171,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
     }
 
     const messages = (await this.client.rest.get(
-      `/channels/${channel.id}/messages?${query.toString()}`,
+      `${Routes.channelMessages(channel.id)}?${query.toString()}`,
     )) as APIMessage[] | null;
 
     if (!messages) {
@@ -191,7 +192,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
 
     const message = (await this.client.rest.get(
-      `/channels/${channel.id}/messages/${messageId}`,
+      Routes.channelMessage(channel.id, messageId),
     )) as APIMessage | null;
 
     if (!message) {
@@ -208,7 +209,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
    */
   public async deleteMessage(messageId: string): Promise<void> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
-    await this.client.rest.delete(`/channels/${channel.id}/messages/${messageId}`);
+    await this.client.rest.delete(Routes.channelMessage(channel.id, messageId));
   }
 
   /**
@@ -218,7 +219,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
    */
   public async bulkDelete(messageIds: string[]): Promise<void> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
-    await this.client.rest.post(`/channels/${channel.id}/messages/bulk-delete`, {
+    await this.client.rest.post(Routes.channelBulkDelete(channel.id), {
       body: { messages: messageIds },
     });
   }
@@ -229,7 +230,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
    */
   public async sendTyping(): Promise<void> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
-    await this.client.rest.post(`/channels/${channel.id}/typing`);
+    await this.client.rest.post(Routes.channelTyping(channel.id));
   }
 
   /**
@@ -275,7 +276,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
     position?: number;
   }): Promise<ChannelStructureInstance | null> {
     const channel = this as unknown as APIChannel & { id: string };
-    const editedChannel = (await this.client.rest.patch(`/channels/${channel.id}`, {
+    const editedChannel = (await this.client.rest.patch(Routes.channel(channel.id), {
       body: data,
     })) as APIChannel | null;
 
@@ -292,7 +293,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
    */
   public async delete(): Promise<void> {
     const channel = this as unknown as APIChannel & { id: string };
-    await this.client.rest.delete(`/channels/${channel.id}`);
+    await this.client.rest.delete(Routes.channel(channel.id));
   }
 
   /**

@@ -3,6 +3,7 @@ import type Client from "../client";
 import type { ThreadMemberStructureInstance } from "../structures/ThreadMemberStructure";
 import ThreadMemberStructure from "../structures/ThreadMemberStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class ThreadMemberManager {
   client: Client;
@@ -80,11 +81,11 @@ export default class ThreadMemberManager {
   }
 
   public async add(threadId: string, userId: string): Promise<void> {
-    await this.client.rest.put(`/channels/${threadId}/thread-members/${userId}`);
+    await this.client.rest.put(Routes.threadMembers(threadId, userId));
   }
 
   public async remove(threadId: string, userId: string): Promise<void> {
-    await this.client.rest.delete(`/channels/${threadId}/thread-members/${userId}`);
+    await this.client.rest.delete(Routes.threadMembers(threadId, userId));
     this._remove(threadId, userId);
   }
 

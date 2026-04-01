@@ -4,6 +4,7 @@ import type { InteractionCollectorOptions } from "../collectors/InteractionColle
 import InteractionCollector from "../collectors/InteractionCollector";
 import type { ReactionCollectorOptions } from "../collectors/ReactionCollector";
 import ReactionCollector from "../collectors/ReactionCollector";
+import { Routes } from "../utils/constants";
 import type { ChannelStructureInstance } from "./ChannelStructure";
 import ChannelStructure from "./ChannelStructure";
 
@@ -273,7 +274,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   public async react(emoji: string): Promise<void> {
     const message = this as unknown as APIMessage;
     await this.client.rest.put(
-      `/channels/${this.channelId}/messages/${message.id}/reactions/${encodeURIComponent(emoji)}/@me`,
+      Routes.channelMessageOwnReaction(this.channelId, message.id, encodeURIComponent(emoji)),
     );
   }
 
@@ -293,7 +294,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
     const message = this as unknown as APIMessage;
     const body = typeof content === "string" ? { content } : content;
 
-    const replyMessage = (await this.client.rest.post(`/channels/${this.channelId}/messages`, {
+    const replyMessage = (await this.client.rest.post(Routes.channelMessages(this.channelId), {
       body: {
         ...body,
         message_reference: {
@@ -333,10 +334,8 @@ class MessageStructure<T extends APIMessage = APIMessage> {
     const body = typeof content === "string" ? { content } : content;
 
     const editedMessage = (await this.client.rest.patch(
-      `/channels/${this.channelId}/messages/${message.id}`,
-      {
-        body,
-      },
+      Routes.channelMessage(this.channelId, message.id),
+      { body },
     )) as APIMessage | null;
 
     if (!editedMessage) {
@@ -357,7 +356,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
    */
   public async delete(): Promise<void> {
     const message = this as unknown as APIMessage;
-    await this.client.rest.delete(`/channels/${this.channelId}/messages/${message.id}`);
+    await this.client.rest.delete(Routes.channelMessage(this.channelId, message.id));
   }
 
   /**
@@ -366,7 +365,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
    */
   public async pin(): Promise<void> {
     const message = this as unknown as APIMessage;
-    await this.client.rest.put(`/channels/${this.channelId}/pins/${message.id}`);
+    await this.client.rest.put(Routes.channelMessagesPin(this.channelId, message.id));
   }
 
   /**
@@ -375,7 +374,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
    */
   public async unpin(): Promise<void> {
     const message = this as unknown as APIMessage;
-    await this.client.rest.delete(`/channels/${this.channelId}/pins/${message.id}`);
+    await this.client.rest.delete(Routes.channelMessagesPin(this.channelId, message.id));
   }
 
   /**
@@ -385,7 +384,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   public async fetch(): Promise<MessageStructureInstance | null> {
     const message = this as unknown as APIMessage;
     const fetchedMessage = (await this.client.rest.get(
-      `/channels/${this.channelId}/messages/${message.id}`,
+      Routes.channelMessage(this.channelId, message.id),
     )) as APIMessage | null;
 
     if (!fetchedMessage) {
@@ -407,7 +406,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   public async crosspost(): Promise<MessageStructureInstance | null> {
     const message = this as unknown as APIMessage;
     const crosspostedMessage = (await this.client.rest.post(
-      `/channels/${this.channelId}/messages/${message.id}/crosspost`,
+      Routes.channelMessageCrosspost(this.channelId, message.id),
     )) as APIMessage | null;
 
     if (!crosspostedMessage) {
@@ -433,15 +432,12 @@ class MessageStructure<T extends APIMessage = APIMessage> {
     autoArchiveDuration?: 60 | 1440 | 4320 | 10080,
   ): Promise<ChannelStructureInstance | null> {
     const message = this as unknown as APIMessage;
-    const thread = (await this.client.rest.post(
-      `/channels/${this.channelId}/messages/${message.id}/threads`,
-      {
-        body: {
-          name,
-          auto_archive_duration: autoArchiveDuration ?? 1440,
-        },
+    const thread = (await this.client.rest.post(Routes.threads(this.channelId, message.id), {
+      body: {
+        name,
+        auto_archive_duration: autoArchiveDuration ?? 1440,
       },
-    )) as APIChannel | null;
+    })) as APIChannel | null;
 
     if (!thread) {
       return null;

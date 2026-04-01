@@ -3,6 +3,7 @@ import type Client from "../client";
 import type { WebhookStructureInstance } from "../structures/WebhookStructure";
 import WebhookStructure from "../structures/WebhookStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class WebhookManager {
   client: Client;
@@ -70,7 +71,7 @@ export default class WebhookManager {
       }
     }
 
-    const webhooks = (await this.client.rest.get(`/channels/${channelId}/webhooks`)) as
+    const webhooks = (await this.client.rest.get(Routes.channelWebhooks(channelId))) as
       | APIWebhook[]
       | null;
 
@@ -122,7 +123,7 @@ export default class WebhookManager {
     channelId: string,
     options: { name: string; avatar?: string; reason?: string },
   ): Promise<WebhookStructureInstance | null> {
-    const webhook = (await this.client.rest.post(`/channels/${channelId}/webhooks`, {
+    const webhook = (await this.client.rest.post(Routes.channelWebhooks(channelId), {
       body: {
         name: options.name,
         avatar: options.avatar,
