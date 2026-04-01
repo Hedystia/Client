@@ -1,8 +1,11 @@
-node_modules
+node_modules/
 bun.lock
 tsconfig.json
-src
+src/
 .npmignore
 tsdown.config.ts
 !dist
 .turbo
+.vscode/
+.git/
+.gitignore
