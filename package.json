@@ -1,6 +1,7 @@
 {
   "name": "@hedystia/discord",
   "version": "0.0.1",
+  "description": "A modern, type-safe Discord client library for Bun and Node.js",
   "scripts": {
     "build": "tsdown --config-loader unrun",
     "release:pkg": "bun publish --provenance --access public",
