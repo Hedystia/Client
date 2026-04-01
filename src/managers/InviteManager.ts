@@ -3,6 +3,7 @@ import type Client from "../client";
 import type { InviteStructureInstance } from "../structures/InviteStructure";
 import InviteStructure from "../structures/InviteStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class InviteManager {
   client: Client;
@@ -60,8 +61,8 @@ export default class InviteManager {
     return inviteStructure;
   }
 
-  public async delete(channelId: string, code: string, reason?: string): Promise<void> {
-    await this.client.rest.delete(`/channels/${channelId}/invites/${code}`, { reason });
+  public async delete(code: string, reason?: string): Promise<void> {
+    await this.client.rest.delete(Routes.invite(code), { reason });
     this._remove(code);
   }
 
