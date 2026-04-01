@@ -1,5 +1,6 @@
 import type { GatewayVoiceServerUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import VoiceServerUpdateStructure from "../structures/VoiceServerUpdateStructure";
 
 export default class VoiceServerUpdate {
   client: Client;
@@ -16,6 +17,8 @@ export default class VoiceServerUpdate {
 
   async _patch(data: { d: GatewayVoiceServerUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("voiceServerUpdate", packet);
+
+    const voiceServerStructure = new VoiceServerUpdateStructure(packet, this.client);
+    this.client.emit("voiceServerUpdate", voiceServerStructure);
   }
 }

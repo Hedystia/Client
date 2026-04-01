@@ -1,5 +1,6 @@
-import type { GatewayGuildMemberRemoveDispatchData } from "discord-api-types/v10";
+import type { APIGuildMember, GatewayGuildMemberRemoveDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import MemberStructure from "../structures/MemberStructure";
 
 export default class GuildMemberRemove {
   client: Client;
@@ -16,14 +17,20 @@ export default class GuildMemberRemove {
 
   async _patch(data: { d: GatewayGuildMemberRemoveDispatchData }): Promise<void> {
     const packet = data.d;
-    const guildId = packet.guild_id;
-    const members = this.client.members.get(guildId);
-    if (members) {
-      const index = members.findIndex((m) => m.user.id === packet.user.id);
-      if (index !== -1) {
-        members.splice(index, 1);
+
+    if (packet.user?.id) {
+      const cachedMember = this.client.members.cache.get(packet.user.id);
+      if (cachedMember) {
+        this.client.emit("guildMemberRemove", cachedMember);
+        this.client.members._remove(packet.user.id);
+      } else {
+        const memberStructure = new MemberStructure(
+          packet as unknown as APIGuildMember,
+          packet.guild_id,
+          this.client,
+        );
+        this.client.emit("guildMemberRemove", memberStructure);
       }
     }
-    this.client.emit("guildMemberRemove", packet);
   }
 }

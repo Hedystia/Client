@@ -1,5 +1,6 @@
 import type { GatewayIntegrationUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import IntegrationStructure from "../structures/IntegrationStructure";
 
 export default class IntegrationUpdate {
   client: Client;
@@ -16,6 +17,10 @@ export default class IntegrationUpdate {
 
   async _patch(data: { d: GatewayIntegrationUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("integrationUpdate", packet);
+
+    const integrationStructure = new IntegrationStructure(packet, packet.guild_id, this.client);
+    this.client.integrations._add(integrationStructure, { enabled: true, force: true });
+
+    this.client.emit("integrationUpdate", integrationStructure);
   }
 }

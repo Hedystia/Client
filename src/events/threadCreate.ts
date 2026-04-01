@@ -1,5 +1,6 @@
 import type { GatewayThreadCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import ChannelStructure from "../structures/ChannelStructure";
 
 export default class ThreadCreate {
   client: Client;
@@ -16,6 +17,13 @@ export default class ThreadCreate {
 
   async _patch(data: { d: GatewayThreadCreateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("threadCreate", packet);
+
+    const channelStructure = new ChannelStructure(packet, this.client);
+    this.client.channels._add(channelStructure, {
+      enabled: true,
+      force: false,
+    });
+
+    this.client.emit("threadCreate", channelStructure);
   }
 }

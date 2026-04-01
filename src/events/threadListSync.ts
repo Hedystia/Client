@@ -1,5 +1,6 @@
 import type { GatewayThreadListSyncDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import ThreadListSyncStructure from "../structures/ThreadListSyncStructure";
 
 export default class ThreadListSync {
   client: Client;
@@ -16,6 +17,8 @@ export default class ThreadListSync {
 
   async _patch(data: { d: GatewayThreadListSyncDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("threadListSync", packet);
+
+    const threadListSyncStructure = new ThreadListSyncStructure(packet, this.client);
+    this.client.emit("threadListSync", threadListSyncStructure);
   }
 }

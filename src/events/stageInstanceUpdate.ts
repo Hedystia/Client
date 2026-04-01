@@ -1,5 +1,6 @@
 import type { GatewayStageInstanceUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import StageInstanceStructure from "../structures/StageInstanceStructure";
 
 export default class StageInstanceUpdate {
   client: Client;
@@ -16,6 +17,10 @@ export default class StageInstanceUpdate {
 
   async _patch(data: { d: GatewayStageInstanceUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("stageInstanceUpdate", packet);
+
+    const instanceStructure = new StageInstanceStructure(packet, this.client);
+    this.client.stageInstances._add(instanceStructure, { enabled: true, force: true });
+
+    this.client.emit("stageInstanceUpdate", instanceStructure);
   }
 }

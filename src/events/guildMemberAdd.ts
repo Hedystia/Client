@@ -1,5 +1,6 @@
 import type { GatewayGuildMemberAddDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import MemberStructure from "../structures/MemberStructure";
 
 export default class GuildMemberAdd {
   client: Client;
@@ -17,14 +18,13 @@ export default class GuildMemberAdd {
   async _patch(data: { d: GatewayGuildMemberAddDispatchData }): Promise<void> {
     const packet = data.d;
     const guildId = packet.guild_id;
-    let members = this.client.members.get(guildId);
-    if (!members) {
-      members = [];
-      this.client.members.set(guildId, members);
-    }
-    if (!members.some((m) => m.user.id === packet.user.id)) {
-      members.push(packet);
-    }
-    this.client.emit("guildMemberAdd", packet);
+
+    const memberStructure = new MemberStructure(packet, guildId, this.client);
+    this.client.members._add(memberStructure, {
+      enabled: true,
+      force: false,
+    });
+
+    this.client.emit("guildMemberAdd", memberStructure);
   }
 }

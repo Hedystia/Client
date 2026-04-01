@@ -1,5 +1,6 @@
 import type { GatewayGuildScheduledEventCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import GuildScheduledEventStructure from "../structures/GuildScheduledEventStructure";
 
 export default class GuildScheduledEventCreate {
   client: Client;
@@ -16,6 +17,10 @@ export default class GuildScheduledEventCreate {
 
   async _patch(data: { d: GatewayGuildScheduledEventCreateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("guildScheduledEventCreate", packet);
+
+    const eventStructure = new GuildScheduledEventStructure(packet, this.client);
+    this.client.scheduledEvents._add(eventStructure, { enabled: true, force: false });
+
+    this.client.emit("guildScheduledEventCreate", eventStructure);
   }
 }

@@ -1,5 +1,6 @@
 import type { GatewayEntitlementUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import EntitlementStructure from "../structures/EntitlementStructure";
 
 export default class EntitlementUpdate {
   client: Client;
@@ -16,6 +17,10 @@ export default class EntitlementUpdate {
 
   async _patch(data: { d: GatewayEntitlementUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("entitlementUpdate", packet);
+
+    const entitlementStructure = new EntitlementStructure(packet, this.client);
+    this.client.entitlements._add(entitlementStructure, { enabled: true, force: true });
+
+    this.client.emit("entitlementUpdate", entitlementStructure);
   }
 }

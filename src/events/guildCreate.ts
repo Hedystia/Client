@@ -1,10 +1,13 @@
 import {
   type APIUnavailableGuild,
-  ChannelType,
   type GatewayGuildCreateDispatchData,
   GatewayOpcodes,
 } from "discord-api-types/v10";
 import type Client from "../client";
+import ChannelStructure from "../structures/ChannelStructure";
+import GuildStructure from "../structures/GuildStructure";
+import MemberStructure from "../structures/MemberStructure";
+import RoleStructure from "../structures/RoleStructure";
 
 type GuildCreateData = GatewayGuildCreateDispatchData | APIUnavailableGuild;
 
@@ -31,23 +34,40 @@ export default class GuildCreate {
       this.client.emit("guildUnavailable", packet);
       return;
     }
-    const guildStructure = this.client.guilds.transformStructure(
-      this.client.guilds.transformPayload(packet),
-    );
+
+    const guildStructure = new GuildStructure(packet, this.client);
     this.client.guilds._add(guildStructure, {
       enabled: true,
       force: false,
     });
-    const categories = packet.channels.filter((c) => c.type === ChannelType.GuildCategory);
-    const textChannels = packet.channels.filter(
-      (c) => c.type === ChannelType.GuildText || c.type === ChannelType.GuildAnnouncement,
-    );
-    this.client.categories.set(packet.id, categories);
-    this.client.channels.set(packet.id, textChannels);
-    this.client.roles.set(packet.id, packet.roles);
-    this.client.members.set(packet.id, packet.members);
+
+    for (const channel of packet.channels) {
+      const channelStructure = new ChannelStructure(channel, this.client);
+      this.client.channels._add(channelStructure, {
+        enabled: true,
+        force: false,
+      });
+    }
+
+    for (const role of packet.roles) {
+      const roleStructure = new RoleStructure(role, this.client);
+      this.client.roles._add(roleStructure, {
+        enabled: true,
+        force: false,
+      });
+    }
+
+    for (const member of packet.members) {
+      const memberStructure = new MemberStructure(member, packet.id, this.client);
+      this.client.members._add(memberStructure, {
+        enabled: true,
+        force: false,
+      });
+    }
+
     this.requestMembers(packet);
-    this.client.emit("guildCreate", packet);
+
+    this.client.emit("guildCreate", guildStructure);
   }
 
   requestMembers(guild: GuildCreateData) {

@@ -1,5 +1,6 @@
 import type { GatewayTypingStartDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import TypingStartStructure from "../structures/TypingStartStructure";
 
 export default class TypingStart {
   client: Client;
@@ -16,6 +17,8 @@ export default class TypingStart {
 
   async _patch(data: { d: GatewayTypingStartDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("typingStart", packet);
+
+    const typingStartStructure = new TypingStartStructure(packet, this.client);
+    this.client.emit("typingStart", typingStartStructure);
   }
 }

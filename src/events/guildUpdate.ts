@@ -1,5 +1,6 @@
 import type { GatewayGuildUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import GuildStructure from "../structures/GuildStructure";
 
 export default class GuildUpdate {
   client: Client;
@@ -16,13 +17,10 @@ export default class GuildUpdate {
 
   async _patch(data: { d: GatewayGuildUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    const guildStructure = this.client.guilds.transformStructure(
-      this.client.guilds.transformPayload(packet),
-    );
-    this.client.guilds._add(guildStructure, {
-      enabled: true,
-      force: true,
-    });
-    this.client.emit("guildUpdate", packet);
+
+    const guildStructure = new GuildStructure(packet, this.client);
+    this.client.guilds._add(guildStructure, { enabled: true, force: true });
+
+    this.client.emit("guildUpdate", guildStructure);
   }
 }

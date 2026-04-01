@@ -1,5 +1,6 @@
 import type { GatewayGuildRoleCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import RoleStructure from "../structures/RoleStructure";
 
 export default class GuildRoleCreate {
   client: Client;
@@ -16,13 +17,13 @@ export default class GuildRoleCreate {
 
   async _patch(data: { d: GatewayGuildRoleCreateDispatchData }): Promise<void> {
     const packet = data.d;
-    const roles = this.client.roles.get(packet.guild_id);
-    if (roles) {
-      roles.push(packet.role);
-      this.client.roles.set(packet.guild_id, roles);
-    } else {
-      this.client.roles.set(packet.guild_id, [packet.role]);
-    }
-    this.client.emit("guildRoleCreate", packet);
+
+    const roleStructure = new RoleStructure(packet.role, this.client);
+    this.client.roles._add(roleStructure, {
+      enabled: true,
+      force: false,
+    });
+
+    this.client.emit("guildRoleCreate", roleStructure);
   }
 }

@@ -1,5 +1,6 @@
 import type { GatewayGuildSoundboardSoundCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import GuildSoundboardSoundStructure from "../structures/GuildSoundboardSoundStructure";
 
 export default class GuildSoundboardSoundCreate {
   client: Client;
@@ -16,6 +17,13 @@ export default class GuildSoundboardSoundCreate {
 
   async _patch(data: { d: GatewayGuildSoundboardSoundCreateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("guildSoundboardSoundCreate", packet);
+
+    const soundStructure = new GuildSoundboardSoundStructure(
+      packet,
+      packet.guild_id ?? "",
+      this.client,
+    );
+    this.client.soundboardSounds._add(soundStructure, { enabled: true, force: false });
+    this.client.emit("guildSoundboardSoundCreate", soundStructure);
   }
 }

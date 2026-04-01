@@ -1,5 +1,6 @@
 import type { GatewayPresenceUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import PresenceStructure from "../structures/PresenceStructure";
 
 export default class PresenceUpdate {
   client: Client;
@@ -16,6 +17,8 @@ export default class PresenceUpdate {
 
   async _patch(data: { d: GatewayPresenceUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("presenceUpdate", packet);
+
+    const presenceStructure = new PresenceStructure(packet, packet.guild_id, this.client);
+    this.client.emit("presenceUpdate", presenceStructure);
   }
 }

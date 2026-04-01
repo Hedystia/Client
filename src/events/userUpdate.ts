@@ -1,5 +1,6 @@
 import type { GatewayUserUpdateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import UserStructure from "../structures/UserStructure";
 
 export default class UserUpdate {
   client: Client;
@@ -16,6 +17,10 @@ export default class UserUpdate {
 
   async _patch(data: { d: GatewayUserUpdateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("userUpdate", packet);
+
+    const userStructure = new UserStructure(packet);
+    this.client.users._add(userStructure, { enabled: true, force: true });
+
+    this.client.emit("userUpdate", userStructure);
   }
 }

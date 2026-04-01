@@ -1,5 +1,6 @@
 import type { GatewayGuildMembersChunkDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import MemberStructure from "../structures/MemberStructure";
 
 export default class GuildMembersChunk {
   client: Client;
@@ -16,7 +17,17 @@ export default class GuildMembersChunk {
 
   async _patch(data: { d: GatewayGuildMembersChunkDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.members.set(packet.guild_id, packet.members);
+    const guildId = packet.guild_id;
+
+    // Add all members from the chunk
+    for (const member of packet.members) {
+      const memberStructure = new MemberStructure(member, guildId, this.client);
+      this.client.members._add(memberStructure, {
+        enabled: true,
+        force: false,
+      });
+    }
+
     this.client.emit("guildMembersChunk", packet);
   }
 }

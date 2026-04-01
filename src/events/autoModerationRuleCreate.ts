@@ -1,5 +1,6 @@
 import type { GatewayAutoModerationRuleCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import AutoModerationRuleStructure from "../structures/AutoModerationRuleStructure";
 
 export default class AutoModerationRuleCreate {
   client: Client;
@@ -16,6 +17,8 @@ export default class AutoModerationRuleCreate {
 
   async _patch(data: { d: GatewayAutoModerationRuleCreateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("autoModerationRuleCreate", packet);
+
+    const ruleStructure = new AutoModerationRuleStructure(packet, packet.guild_id, this.client);
+    this.client.emit("autoModerationRuleCreate", ruleStructure);
   }
 }

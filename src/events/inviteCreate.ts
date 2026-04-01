@@ -1,5 +1,6 @@
 import type { GatewayInviteCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import InviteStructure from "../structures/InviteStructure";
 
 export default class InviteCreate {
   client: Client;
@@ -16,6 +17,10 @@ export default class InviteCreate {
 
   async _patch(data: { d: GatewayInviteCreateDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("inviteCreate", packet);
+
+    const inviteStructure = new InviteStructure(packet, this.client);
+    this.client.invites._add(inviteStructure, { enabled: true, force: false });
+
+    this.client.emit("inviteCreate", inviteStructure);
   }
 }

@@ -1,5 +1,6 @@
-import type { GatewayGuildRoleDeleteDispatchData } from "discord-api-types/v10";
+import type { APIRole, GatewayGuildRoleDeleteDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import RoleStructure from "../structures/RoleStructure";
 
 export default class GuildRoleDelete {
   client: Client;
@@ -16,14 +17,14 @@ export default class GuildRoleDelete {
 
   async _patch(data: { d: GatewayGuildRoleDeleteDispatchData }): Promise<void> {
     const packet = data.d;
-    const roles = this.client.roles.get(packet.guild_id);
-    if (roles) {
-      const index = roles.findIndex((r) => r.id === packet.role_id);
-      if (index !== -1) {
-        roles.splice(index, 1);
-        this.client.roles.set(packet.guild_id, roles);
-      }
+
+    const cachedRole = this.client.roles.cache.get(packet.role_id);
+    if (cachedRole) {
+      this.client.emit("guildRoleDelete", cachedRole);
+      this.client.roles._remove(packet.role_id);
+    } else {
+      const roleStructure = new RoleStructure({ id: packet.role_id } as APIRole, this.client);
+      this.client.emit("guildRoleDelete", roleStructure);
     }
-    this.client.emit("guildRoleDelete", packet);
   }
 }

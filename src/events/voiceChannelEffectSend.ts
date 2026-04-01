@@ -1,5 +1,6 @@
 import type { GatewayVoiceChannelEffectSendDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import VoiceChannelEffectSendStructure from "../structures/VoiceChannelEffectSendStructure";
 
 export default class VoiceChannelEffectSend {
   client: Client;
@@ -16,6 +17,8 @@ export default class VoiceChannelEffectSend {
 
   async _patch(data: { d: GatewayVoiceChannelEffectSendDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("voiceChannelEffectSend", packet);
+
+    const effectStructure = new VoiceChannelEffectSendStructure(packet, this.client);
+    this.client.emit("voiceChannelEffectSend", effectStructure);
   }
 }

@@ -1,5 +1,6 @@
 import type { GatewayMessageReactionRemoveDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import MessageReactionStructure from "../structures/MessageReactionStructure";
 
 export default class MessageReactionRemove {
   client: Client;
@@ -16,6 +17,13 @@ export default class MessageReactionRemove {
 
   async _patch(data: { d: GatewayMessageReactionRemoveDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("messageReactionRemove", packet);
+
+    const reactionStructure = new MessageReactionStructure(
+      packet,
+      packet.message_id,
+      packet.channel_id,
+      this.client,
+    );
+    this.client.emit("messageReactionRemove", reactionStructure);
   }
 }
