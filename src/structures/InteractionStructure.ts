@@ -4,6 +4,7 @@ import type {
   InteractionCollectorOptions,
 } from "../collectors/InteractionCollector";
 import InteractionCollector from "../collectors/InteractionCollector";
+import { Routes } from "../utils/constants";
 
 export type APIInteraction = ComponentInteraction & {
   id: string;
@@ -155,6 +156,117 @@ class InteractionStructure<T extends APIInteraction = APIInteraction> {
    */
   public equals(interaction: InteractionStructure): boolean {
     return this.id === interaction.id;
+  }
+
+  /**
+   * Replies to an interaction (initial response)
+   * @param content - The content to send
+   * @returns A promise that resolves when the response is sent
+   */
+  public async reply(
+    content:
+      | string
+      | {
+          content?: string;
+          embeds?: Array<{ title?: string; description?: string; color?: number }>;
+          components?: Array<{ type: number; components?: unknown[] }>;
+          flags?: number;
+        },
+  ): Promise<void> {
+    const body = typeof content === "string" ? { content } : content;
+
+    await this.client.rest.post(Routes.interactionCallback(this.id, this.token), {
+      body: {
+        type: 4, // ChannelMessageWithSource
+        data: body,
+      },
+    });
+  }
+
+  /**
+   * Defers the interaction response (shows "thinking..." state)
+   * @param ephemeral - Whether the response should be ephemeral (only visible to the user)
+   * @returns A promise that resolves when the defer is sent
+   */
+  public async defer(ephemeral = false): Promise<void> {
+    await this.client.rest.post(Routes.interactionCallback(this.id, this.token), {
+      body: {
+        type: 5, // DeferredChannelMessageWithSource
+        data: {
+          flags: ephemeral ? 64 : 0,
+        },
+      },
+    });
+  }
+
+  /**
+   * Edits the original interaction response
+   * @param content - The new content
+   * @returns A promise that resolves when the edit is complete
+   */
+  public async editOriginal(
+    content:
+      | string
+      | {
+          content?: string;
+          embeds?: Array<{ title?: string; description?: string; color?: number }>;
+          components?: Array<{ type: number; components?: unknown[] }>;
+        },
+  ): Promise<void> {
+    if (!this.client.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+
+    const body = typeof content === "string" ? { content } : content;
+
+    await this.client.rest.patch(
+      Routes.webhookMessage(this.client.me.id, this.token, "@original"),
+      { body },
+    );
+  }
+
+  /**
+   * Deletes the original interaction response
+   * @returns A promise that resolves when the deletion is complete
+   */
+  public async deleteOriginal(): Promise<void> {
+    if (!this.client.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+
+    await this.client.rest.delete(
+      Routes.webhookMessage(this.client.me.id, this.token, "@original"),
+    );
+  }
+
+  /**
+   * Sends a follow-up message to the interaction
+   * @param content - The content to send
+   * @returns A promise that resolves when the follow-up is sent
+   */
+  public async sendFollowUp(
+    content:
+      | string
+      | {
+          content?: string;
+          embeds?: Array<{ title?: string; description?: string; color?: number }>;
+          components?: Array<{ type: number; components?: unknown[] }>;
+          ephemeral?: boolean;
+        },
+  ): Promise<void> {
+    if (!this.client.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+
+    const body = typeof content === "string" ? { content } : content;
+    const { ephemeral, ...rest } = body;
+
+    await this.client.rest.post(Routes.webhook(this.client.me.id, this.token), {
+      body: {
+        ...rest,
+        flags: ephemeral ? 64 : 0,
+      },
+    });
   }
 }
 
