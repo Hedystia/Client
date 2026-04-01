@@ -3,24 +3,120 @@ import type { WebSocketOptions } from "bun";
 import {
   type ActivityType,
   type APIGatewayBotInfo,
-  type APIGuildCategoryChannel,
-  type APIGuildMember,
-  type APINewsChannel,
-  type APIRole,
-  type APITextChannel,
   type APIUser,
   type PresenceUpdateReceiveStatus,
   PresenceUpdateStatus,
 } from "discord-api-types/v10";
+import ChannelManager from "../managers/ChannelManager";
+import EmojiManager from "../managers/EmojiManager";
+import EntitlementManager from "../managers/EntitlementManager";
+import GuildBanManager from "../managers/GuildBanManager";
 import GuildManager from "../managers/GuildManager";
+import GuildScheduledEventManager from "../managers/GuildScheduledEventManager";
+import IntegrationManager from "../managers/IntegrationManager";
+import InviteManager from "../managers/InviteManager";
+import MemberManager from "../managers/MemberManager";
+import RoleManager from "../managers/RoleManager";
+import SoundboardSoundManager from "../managers/SoundboardSoundManager";
+import StageInstanceManager from "../managers/StageInstanceManager";
+import StickerManager from "../managers/StickerManager";
+import SubscriptionManager from "../managers/SubscriptionManager";
+import ThreadMemberManager from "../managers/ThreadMemberManager";
+import UserManager from "../managers/UserManager";
+import WebhookManager from "../managers/WebhookManager";
 import REST from "../rest";
 import type { ClientEvents } from "../types/ClientEvents";
 import type { Presence } from "../types/Gateway";
-import Cache from "../utils/cache";
+import type { CacheOptions } from "../utils/cache";
 import { Routes } from "../utils/constants";
 import type Intents from "../utils/intents";
 import VoiceManager from "../voice/VoiceManager";
 import ShardManager from "./ShardManager";
+
+/**
+ * Cache configuration for individual managers
+ */
+export interface ManagerCacheConfig {
+  /**
+   * Whether caching is enabled for this manager
+   * @defaultValue true
+   */
+  enabled?: boolean;
+
+  /**
+   * Maximum number of items to keep in cache
+   * @defaultValue Infinity (unlimited)
+   */
+  maxSize?: number;
+
+  /**
+   * Time to live for items in milliseconds
+   * @defaultValue undefined (items never expire)
+   */
+  ttl?: number;
+
+  /**
+   * Whether to enable dynamic TTL based on usage
+   * @defaultValue false
+   */
+  dynamicTTL?: boolean;
+
+  /**
+   * Interval in milliseconds to run automatic cleanup
+   * @defaultValue 60000 (1 minute)
+   */
+  cleanupInterval?: number;
+}
+
+/**
+ * Global cache configuration for the client
+ */
+export interface CacheConfiguration {
+  /**
+   * Default cache options applied to all managers
+   */
+  defaults?: CacheOptions;
+
+  /**
+   * Per-manager cache configuration
+   */
+  managers?: {
+    /** Cache config for users manager */
+    users?: ManagerCacheConfig;
+    /** Cache config for channels manager */
+    channels?: ManagerCacheConfig;
+    /** Cache config for guilds manager */
+    guilds?: ManagerCacheConfig;
+    /** Cache config for members manager */
+    members?: ManagerCacheConfig;
+    /** Cache config for roles manager */
+    roles?: ManagerCacheConfig;
+    /** Cache config for emojis manager */
+    emojis?: ManagerCacheConfig;
+    /** Cache config for stickers manager */
+    stickers?: ManagerCacheConfig;
+    /** Cache config for bans manager */
+    bans?: ManagerCacheConfig;
+    /** Cache config for scheduled events manager */
+    scheduledEvents?: ManagerCacheConfig;
+    /** Cache config for integrations manager */
+    integrations?: ManagerCacheConfig;
+    /** Cache config for invites manager */
+    invites?: ManagerCacheConfig;
+    /** Cache config for entitlements manager */
+    entitlements?: ManagerCacheConfig;
+    /** Cache config for stage instances manager */
+    stageInstances?: ManagerCacheConfig;
+    /** Cache config for subscriptions manager */
+    subscriptions?: ManagerCacheConfig;
+    /** Cache config for thread members manager */
+    threadMembers?: ManagerCacheConfig;
+    /** Cache config for soundboard sounds manager */
+    soundboardSounds?: ManagerCacheConfig;
+    /** Cache config for webhooks manager */
+    webhooks?: ManagerCacheConfig;
+  };
+}
 
 export interface ClientOptions {
   token: string;
@@ -35,6 +131,11 @@ export interface ClientOptions {
   compress?: boolean;
   largeThreshold?: number;
   shardsCount?: number | "auto";
+  /**
+   * Cache configuration for the client
+   * Allows per-manager customization of cache behavior
+   */
+  cache?: CacheConfiguration;
 }
 
 interface Activities {
@@ -43,11 +144,6 @@ interface Activities {
   url?: string;
   state?: string;
 }
-
-const categories = new Cache<string, APIGuildCategoryChannel[]>();
-const channels = new Cache<string, (APITextChannel | APINewsChannel)[]>();
-const members = new Cache<string, APIGuildMember[]>();
-const roles = new Cache<string, APIRole[]>();
 
 export default class Client extends EventEmitter<ClientEvents> {
   token: string;
@@ -64,12 +160,24 @@ export default class Client extends EventEmitter<ClientEvents> {
   largeThreshold?: number;
   shardsCount: number | "auto";
   shards: Map<number, ShardManager>;
-  private _guilds = new GuildManager(this);
-  private _voice = new VoiceManager(this);
-  categories: Cache<string, APIGuildCategoryChannel[]>;
-  channels: Cache<string, (APITextChannel | APINewsChannel)[]>;
-  members: Cache<string, APIGuildMember[]>;
-  roles: Cache<string, APIRole[]>;
+  users: UserManager;
+  channels: ChannelManager;
+  guilds: GuildManager;
+  members: MemberManager;
+  roles: RoleManager;
+  emojis: EmojiManager;
+  stickers: StickerManager;
+  bans: GuildBanManager;
+  scheduledEvents: GuildScheduledEventManager;
+  integrations: IntegrationManager;
+  invites: InviteManager;
+  entitlements: EntitlementManager;
+  stageInstances: StageInstanceManager;
+  subscriptions: SubscriptionManager;
+  threadMembers: ThreadMemberManager;
+  soundboardSounds: SoundboardSoundManager;
+  webhooks: WebhookManager;
+  voice: VoiceManager;
 
   constructor(options: ClientOptions) {
     super();
@@ -88,6 +196,24 @@ export default class Client extends EventEmitter<ClientEvents> {
     this.shardsCount = options.shardsCount ?? "auto";
 
     this.shards = new Map();
+    this.users = new UserManager(this);
+    this.channels = new ChannelManager(this);
+    this.guilds = new GuildManager(this);
+    this.members = new MemberManager(this);
+    this.roles = new RoleManager(this);
+    this.emojis = new EmojiManager(this);
+    this.stickers = new StickerManager(this);
+    this.bans = new GuildBanManager(this);
+    this.scheduledEvents = new GuildScheduledEventManager(this);
+    this.integrations = new IntegrationManager(this);
+    this.invites = new InviteManager(this);
+    this.entitlements = new EntitlementManager(this);
+    this.stageInstances = new StageInstanceManager(this);
+    this.subscriptions = new SubscriptionManager(this);
+    this.threadMembers = new ThreadMemberManager(this);
+    this.soundboardSounds = new SoundboardSoundManager(this);
+    this.webhooks = new WebhookManager(this);
+    this.voice = new VoiceManager(this);
 
     this.rest = new REST({
       token: this.token,
@@ -101,11 +227,6 @@ export default class Client extends EventEmitter<ClientEvents> {
     };
 
     this.ws = options?.ws;
-
-    this.categories = categories;
-    this.channels = channels;
-    this.members = members;
-    this.roles = roles;
   }
 
   /**
@@ -242,6 +363,10 @@ export default class Client extends EventEmitter<ClientEvents> {
     }
   }
 
+  /**
+   * Gets the gateway bot information
+   * @link https://discord.com/developers/docs/topics/gateway#get-gateway-bot
+   */
   async getGatewayBot(): Promise<{
     url: string;
     shards: number;
@@ -266,18 +391,139 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   /**
-   * Gets the guilds manager
-   * @returns {GuildManager} The guilds manager
+   * Registers application commands globally
+   * @param commands - Array of command data
+   * @returns The registered commands
+   * @link https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-global-application-commands
    */
-  get guilds(): GuildManager {
-    return this._guilds;
+  async registerCommands(commands: unknown[]): Promise<unknown[]> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.put(Routes.applicationCommands(this.me.id), {
+      body: commands,
+    }) as Promise<unknown[]>;
   }
 
   /**
-   * Gets the voice manager
-   * @returns {VoiceManager} The voice manager
+   * Registers application commands for a specific guild (faster for testing)
+   * @param guildId - The guild ID
+   * @param commands - Array of command data
+   * @returns The registered commands
+   * @link https://discord.com/developers/docs/interactions/application-commands#bulk-overwrite-guild-application-commands
    */
-  get voice(): VoiceManager {
-    return this._voice;
+  async registerGuildCommands(guildId: string, commands: unknown[]): Promise<unknown[]> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.put(Routes.applicationGuildCommands(this.me.id, guildId), {
+      body: commands,
+    }) as Promise<unknown[]>;
+  }
+
+  /**
+   * Deletes all global application commands
+   * @returns Empty array
+   */
+  async deleteAllCommands(): Promise<unknown[]> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.put(Routes.applicationCommands(this.me.id), {
+      body: [],
+    }) as Promise<unknown[]>;
+  }
+
+  /**
+   * Deletes all application commands for a specific guild
+   * @param guildId - The guild ID
+   * @returns Empty array
+   */
+  async deleteAllGuildCommands(guildId: string): Promise<unknown[]> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.put(Routes.applicationGuildCommands(this.me.id, guildId), {
+      body: [],
+    }) as Promise<unknown[]>;
+  }
+
+  /**
+   * Fetches all global application commands
+   * @returns Array of commands
+   */
+  async fetchCommands(): Promise<unknown[]> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.get(Routes.applicationCommands(this.me.id)) as Promise<unknown[]>;
+  }
+
+  /**
+   * Fetches all application commands for a specific guild
+   * @param guildId - The guild ID
+   * @returns Array of commands
+   */
+  async fetchGuildCommands(guildId: string): Promise<unknown[]> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.get(Routes.applicationGuildCommands(this.me.id, guildId)) as Promise<
+      unknown[]
+    >;
+  }
+
+  /**
+   * Updates a specific global application command
+   * @param commandId - The command ID
+   * @param data - The updated command data
+   * @returns The updated command
+   */
+  async updateCommand(commandId: string, data: unknown): Promise<unknown> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.patch(Routes.applicationCommand(this.me.id, commandId), {
+      body: data,
+    }) as Promise<unknown>;
+  }
+
+  /**
+   * Updates a specific guild application command
+   * @param guildId - The guild ID
+   * @param commandId - The command ID
+   * @param data - The updated command data
+   * @returns The updated command
+   */
+  async updateGuildCommand(guildId: string, commandId: string, data: unknown): Promise<unknown> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    return this.rest.patch(Routes.applicationGuildCommand(this.me.id, guildId, commandId), {
+      body: data,
+    }) as Promise<unknown>;
+  }
+
+  /**
+   * Deletes a specific global application command
+   * @param commandId - The command ID
+   */
+  async deleteCommand(commandId: string): Promise<void> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    await this.rest.delete(Routes.applicationCommand(this.me.id, commandId));
+  }
+
+  /**
+   * Deletes a specific guild application command
+   * @param guildId - The guild ID
+   * @param commandId - The command ID
+   */
+  async deleteGuildCommand(guildId: string, commandId: string): Promise<void> {
+    if (!this.me?.id) {
+      throw new Error("Client is not logged in");
+    }
+    await this.rest.delete(Routes.applicationGuildCommand(this.me.id, guildId, commandId));
   }
 }
