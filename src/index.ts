@@ -1,5 +1,7 @@
+import Client from "./client";
+
 export * from "./builders";
-export { default as Client } from "./client";
+export * from "./client";
 export * from "./collectors";
 export * from "./managers";
 export { default as REST } from "./rest";
@@ -10,3 +12,5 @@ export { Cache } from "./utils/cache";
 export * from "./utils/constants";
 export { default as Intents } from "./utils/intents";
 export * from "./voice";
+
+export default Client;
