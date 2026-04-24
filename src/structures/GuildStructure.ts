@@ -404,7 +404,8 @@ class GuildStructure<T extends APIGuild = APIGuild> {
 export default GuildStructure as new <T extends APIGuild = APIGuild>(
   data: T,
   client: Client,
-) => GuildStructure<T> & T & { readonly client: Client };
+) => GuildStructure<T> &
+  Omit<T, "roles" | "emojis" | "stickers" | "channels"> & { readonly client: Client };
 
 export type GuildStructureInstance = InstanceType<typeof GuildStructure> &
-  APIGuild & { readonly client: Client };
+  Omit<APIGuild, "roles" | "emojis" | "stickers" | "channels"> & { readonly client: Client };
