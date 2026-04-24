@@ -13,7 +13,7 @@ import type {
 import type Client from "../client";
 import type { MessageCollectorOptions } from "../collectors/MessageCollector";
 import MessageCollector from "../collectors/MessageCollector";
-import { Routes } from "../utils/constants";
+import { ChannelType, Routes } from "../utils/constants";
 import type { MessageStructureInstance } from "./MessageStructure";
 import MessageStructure from "./MessageStructure";
 
@@ -71,33 +71,63 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
   /**
    * Whether the channel is text-based
    */
-  public get isTextBased(): boolean {
+  public isTextBased(): this is ChannelStructureInstance<
+    APITextChannel | APIDMChannel | APIGroupDMChannel | APINewsChannel | APIThreadChannel
+  > {
     const channel = this as unknown as APIChannel;
-    return [0, 1, 3, 5, 10, 11, 12].includes(channel.type);
+    return [
+      ChannelType.GuildText,
+      ChannelType.DM,
+      ChannelType.GroupDM,
+      ChannelType.GuildAnnouncement,
+      ChannelType.AnnouncementThread,
+      ChannelType.PublicThread,
+      ChannelType.PrivateThread,
+    ].includes(channel.type);
   }
 
   /**
    * Whether the channel is a voice channel
    */
-  public get isVoiceBased(): boolean {
+  public isVoiceBased(): this is ChannelStructureInstance<APIGuildVoiceChannel> {
     const channel = this as unknown as APIChannel;
-    return [2, 13].includes(channel.type);
+    return [ChannelType.GuildVoice, ChannelType.GuildStageVoice].includes(channel.type);
   }
 
   /**
    * Whether the channel is a thread
    */
-  public get isThread(): boolean {
+  public isThread(): this is ChannelStructureInstance<APIThreadChannel> {
     const channel = this as unknown as APIChannel;
-    return [10, 11, 12].includes(channel.type);
+    return [
+      ChannelType.AnnouncementThread,
+      ChannelType.PublicThread,
+      ChannelType.PrivateThread,
+    ].includes(channel.type);
   }
 
   /**
    * Whether the channel is a DM channel
    */
-  public get isDM(): boolean {
+  public isDM(): this is ChannelStructureInstance<APIDMChannel | APIGroupDMChannel> {
     const channel = this as unknown as APIChannel;
-    return [1, 3].includes(channel.type);
+    return [ChannelType.DM, ChannelType.GroupDM].includes(channel.type);
+  }
+
+  /**
+   * Whether the channel is a category
+   */
+  public isCategory(): this is ChannelStructureInstance<APIGuildCategoryChannel> {
+    const channel = this as unknown as APIChannel;
+    return channel.type === ChannelType.GuildCategory;
+  }
+
+  /**
+   * Whether the channel is a guild text or announcement channel
+   */
+  public isGuildText(): this is ChannelStructureInstance<APITextChannel | APINewsChannel> {
+    const channel = this as unknown as APIChannel;
+    return [ChannelType.GuildText, ChannelType.GuildAnnouncement].includes(channel.type);
   }
 
   /**
@@ -125,9 +155,9 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
     content:
       | string
       | {
-          content?: string;
-          embeds?: Array<{ title?: string; description?: string; color?: number }>;
-        },
+        content?: string;
+        embeds?: Array<{ title?: string; description?: string; color?: number }>;
+      },
   ): Promise<MessageStructureInstance | null> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
     const body = typeof content === "string" ? { content } : content;
@@ -332,4 +362,7 @@ export default ChannelStructure as new <T extends APIChannel = APIChannel>(
   client: Client,
 ) => ChannelStructure<T> & T & { readonly client: Client };
 
-export type ChannelStructureInstance = ChannelStructure & APIChannel & { readonly client: Client };
+export type ChannelStructureInstance<T extends APIChannel = APIChannel> = T extends any
+  ? ChannelStructure<T> & T & { readonly client: Client }
+  : never;
+
