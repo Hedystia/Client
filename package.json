@@ -1,6 +1,6 @@
 {
   "name": "@hedystia/discord",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "A modern, type-safe Discord client library for Bun and Node.js",
   "scripts": {
     "build": "tsdown --config-loader unrun",
