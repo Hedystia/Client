@@ -459,11 +459,13 @@ export class Cache<K, V> {
    * @param fn - The predicate function to test each entry
    * @returns A new Cache instance with the filtered entries
    */
-  public filter(fn: (val: V, key: K, map: this) => boolean): Cache<K, V> {
-    const result = new Cache<K, V>(this._options);
+  public filter<S extends V>(fn: (val: V, key: K, map: this) => val is S): Cache<K, S>;
+  public filter(fn: (val: V, key: K, map: this) => boolean): Cache<K, V>;
+  public filter<S extends V>(fn: (val: V, key: K, map: this) => boolean): Cache<K, S | V> {
+    const result = new Cache<K, S | V>(this._options);
     for (const [key, val] of this.entries()) {
       if (fn(val, key, this)) {
-        result.set(key, val);
+        result.set(key, val as S | V);
       }
     }
     return result;
