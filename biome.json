@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.10/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.13/schema.json",
   "vcs": {
     "enabled": false,
     "clientKind": "git",
@@ -31,7 +31,11 @@
   },
   "overrides": [
     {
-      "includes": ["**/*.svelte", "**/*.astro", "**/*.vue"],
+      "includes": [
+        "**/*.svelte",
+        "**/*.astro",
+        "**/*.vue"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -98,7 +102,9 @@
         "noInvalidBuiltinInstantiation": "error",
         "useValidTypeof": "error"
       },
-      "security": { "noGlobalEval": "error" },
+      "security": {
+        "noGlobalEval": "error"
+      },
       "suspicious": {
         "noAssignInExpressions": "error",
         "noAsyncPromiseExecutor": "off",
@@ -127,7 +133,14 @@
         "useDefaultSwitchClauseLast": "error",
         "noVar": "warn",
         "noWith": "error",
-        "noConsole": { "level": "off", "options": { "allow": ["log"] } }
+        "noConsole": {
+          "level": "off",
+          "options": {
+            "allow": [
+              "log"
+            ]
+          }
+        }
       }
     }
   },
