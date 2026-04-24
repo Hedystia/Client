@@ -204,7 +204,7 @@ class MemberStructure<T extends APIGuildMember = APIGuildMember> {
    * @param member - The member to compare with
    * @returns Whether the members are equal
    */
-  public equals(member: MemberStructureInstance): boolean {
+  public equals(member: this): boolean {
     const memberA = this as unknown as APIGuildMember;
     const memberB = member as unknown as APIGuildMember;
     return memberA.user?.id === memberB.user?.id && this.guildId === member.guildId;
