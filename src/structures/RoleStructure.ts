@@ -112,6 +112,5 @@ export default RoleStructure as new <T extends APIRole = APIRole>(
   client: Client,
 ) => RoleStructure<T> & T & { readonly client: Client };
 
-export type RoleStructureInstance<T extends APIRole = APIRole> = T extends any
-  ? RoleStructure<T> & T & { readonly client: Client }
-  : never;
+export type RoleStructureInstance<T extends APIRole = APIRole> = InstanceType<typeof RoleStructure> &
+  T & { readonly client: Client };

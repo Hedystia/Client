@@ -357,7 +357,5 @@ export default ChannelStructure as new <T extends APIChannel = APIChannel>(
   client: Client,
 ) => ChannelStructure<T> & T & { readonly client: Client };
 
-export type ChannelStructureInstance<T extends APIChannel = APIChannel> = T extends any
-  ? ChannelStructure<T> & T & { readonly client: Client }
-  : never;
-
+export type ChannelStructureInstance<T extends APIChannel = APIChannel> =
+  InstanceType<typeof ChannelStructure> & T & { readonly client: Client };
