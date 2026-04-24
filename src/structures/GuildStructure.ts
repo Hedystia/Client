@@ -123,231 +123,244 @@ class GuildStructure<T extends APIGuild = APIGuild> {
 
   /**
    * Gets the guild's channels scoped manager
-   * @returns An object with cache and fetch for this guild's channels
+   * @returns A manager for this guild's channels
    */
-  public get channels() {
+  public get channels(): {
+    cache: Cache<string, ChannelStructureInstance>;
+    fetch: (
+      id: string,
+      options?: Parameters<Client["channels"]["fetch"]>[1],
+    ) => ReturnType<Client["channels"]["fetch"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.channels.cache.filter(
+      (channel) => (channel as unknown as { guild_id: string }).guild_id === guild.id,
+    );
+
     return {
-      get cache() {
-        const filtered = new Cache<string, ChannelStructureInstance>();
-        for (const [key, channel] of client.channels.cache.entries()) {
-          if ((channel as unknown as { guild_id: string }).guild_id === guild.id) {
-            filtered.set(key, channel);
-          }
-        }
-        return filtered;
-      },
-      fetch(id: string, options?: Parameters<typeof client.channels.fetch>[1]) {
-        return client.channels.fetch(id, options);
-      },
+      cache,
+      fetch: (id: string, options?: Parameters<typeof client.channels.fetch>[1]) =>
+        client.channels.fetch(id, options),
     };
   }
 
   /**
    * Gets the guild's members scoped manager
-   * @returns An object with cache and fetch for this guild's members
+   * @returns A manager for this guild's members
    */
-  public get members() {
+  public get members(): {
+    cache: Cache<string, MemberStructureInstance>;
+    fetch: (
+      memberId: string,
+      options?: Parameters<Client["members"]["fetch"]>[2],
+    ) => ReturnType<Client["members"]["fetch"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.members.cache.filter((member) => member.guildId === guild.id);
+
     return {
-      get cache() {
-        const filtered = new Cache<string, MemberStructureInstance>();
-        for (const [key, member] of client.members.cache.entries()) {
-          if (member.guildId === guild.id) {
-            filtered.set(key, member);
-          }
-        }
-        return filtered;
-      },
-      fetch(memberId: string, options?: Parameters<typeof client.members.fetch>[2]) {
-        return client.members.fetch(guild.id, memberId, options);
-      },
+      cache,
+      fetch: (memberId: string, options?: Parameters<typeof client.members.fetch>[2]) =>
+        client.members.fetch(guild.id, memberId, options),
     };
   }
 
   /**
    * Gets the guild's roles scoped manager
-   * @returns An object with cache and fetch for this guild's roles
+   * @returns A manager for this guild's roles
    */
-  public get roles() {
+  public get roles(): {
+    cache: Cache<string, RoleStructureInstance>;
+    fetch: (
+      roleId: string,
+      options?: Parameters<Client["roles"]["fetch"]>[2],
+    ) => ReturnType<Client["roles"]["fetch"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.roles.cache.filter(
+      (role) => (role as unknown as { guild_id: string }).guild_id === guild.id,
+    );
+
     return {
-      get cache() {
-        const filtered = new Cache<string, RoleStructureInstance>();
-        for (const [key, role] of client.roles.cache.entries()) {
-          if ((role as unknown as { guild_id: string }).guild_id === guild.id) {
-            filtered.set(key, role);
-          }
-        }
-        return filtered;
-      },
-      fetch(roleId: string, options?: Parameters<typeof client.roles.fetch>[2]) {
-        return client.roles.fetch(guild.id, roleId, options);
-      },
+      cache,
+      fetch: (roleId: string, options?: Parameters<typeof client.roles.fetch>[2]) =>
+        client.roles.fetch(guild.id, roleId, options),
     };
   }
 
   /**
    * Gets the guild's emojis scoped manager
-   * @returns An object with cache, fetch and fetchOne for this guild's emojis
+   * @returns A manager for this guild's emojis
    */
-  public get emojis() {
+  public get emojis(): {
+    cache: Cache<string, GuildEmojiStructureInstance>;
+    fetch: (
+      options?: Parameters<Client["emojis"]["fetch"]>[1],
+    ) => ReturnType<Client["emojis"]["fetch"]>;
+    fetchOne: (
+      emojiId: string,
+      options?: Parameters<Client["emojis"]["fetchOne"]>[2],
+    ) => ReturnType<Client["emojis"]["fetchOne"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.emojis.cache.filter((emoji) => emoji.guildId === guild.id);
+
     return {
-      get cache() {
-        const filtered = new Cache<string, GuildEmojiStructureInstance>();
-        for (const [key, emoji] of client.emojis.cache.entries()) {
-          if (emoji.guildId === guild.id) {
-            filtered.set(key, emoji);
-          }
-        }
-        return filtered;
-      },
-      fetch(options?: Parameters<typeof client.emojis.fetch>[1]) {
-        return client.emojis.fetch(guild.id, options);
-      },
-      fetchOne(emojiId: string, options?: Parameters<typeof client.emojis.fetchOne>[2]) {
-        return client.emojis.fetchOne(guild.id, emojiId, options);
-      },
+      cache,
+      fetch: (options?: Parameters<typeof client.emojis.fetch>[1]) =>
+        client.emojis.fetch(guild.id, options),
+      fetchOne: (emojiId: string, options?: Parameters<typeof client.emojis.fetchOne>[2]) =>
+        client.emojis.fetchOne(guild.id, emojiId, options),
     };
   }
 
   /**
    * Gets the guild's stickers scoped manager
-   * @returns An object with cache, fetch and fetchOne for this guild's stickers
+   * @returns A manager for this guild's stickers
    */
-  public get stickers() {
+  public get stickers(): {
+    cache: Cache<string, GuildStickerStructureInstance>;
+    fetch: (
+      options?: Parameters<Client["stickers"]["fetch"]>[1],
+    ) => ReturnType<Client["stickers"]["fetch"]>;
+    fetchOne: (
+      stickerId: string,
+      options?: Parameters<Client["stickers"]["fetchOne"]>[2],
+    ) => ReturnType<Client["stickers"]["fetchOne"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.stickers.cache.filter((sticker) => sticker.guildId === guild.id);
+
     return {
-      get cache() {
-        const filtered = new Cache<string, GuildStickerStructureInstance>();
-        for (const [key, sticker] of client.stickers.cache.entries()) {
-          if (sticker.guildId === guild.id) {
-            filtered.set(key, sticker);
-          }
-        }
-        return filtered;
-      },
-      fetch(options?: Parameters<typeof client.stickers.fetch>[1]) {
-        return client.stickers.fetch(guild.id, options);
-      },
-      fetchOne(stickerId: string, options?: Parameters<typeof client.stickers.fetchOne>[2]) {
-        return client.stickers.fetchOne(guild.id, stickerId, options);
-      },
+      cache,
+      fetch: (options?: Parameters<typeof client.stickers.fetch>[1]) =>
+        client.stickers.fetch(guild.id, options),
+      fetchOne: (
+        stickerId: string,
+        options?: Parameters<typeof client.stickers.fetchOne>[2],
+      ) => client.stickers.fetchOne(guild.id, stickerId, options),
     };
   }
 
   /**
    * Gets the guild's bans scoped manager
-   * @returns An object with cache, fetch, fetchOne, create and remove for this guild's bans
+   * @returns A manager for this guild's bans
    */
-  public get bans() {
+  public get bans(): {
+    cache: Cache<string, GuildBanStructureInstance>;
+    fetch: (
+      options?: Parameters<Client["bans"]["fetch"]>[1],
+    ) => ReturnType<Client["bans"]["fetch"]>;
+    fetchOne: (
+      userId: string,
+      options?: Parameters<Client["bans"]["fetchOne"]>[2],
+    ) => ReturnType<Client["bans"]["fetchOne"]>;
+    create: (
+      userId: string,
+      options?: Parameters<Client["bans"]["create"]>[2],
+    ) => ReturnType<Client["bans"]["create"]>;
+    remove: (
+      userId: string,
+      reason?: string,
+    ) => ReturnType<Client["bans"]["remove"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.bans.cache.filter((ban) => ban.guildId === guild.id);
+
     return {
-      get cache() {
-        const filtered = new Cache<string, GuildBanStructureInstance>();
-        for (const [key, ban] of client.bans.cache.entries()) {
-          if (ban.guildId === guild.id) {
-            filtered.set(key, ban);
-          }
-        }
-        return filtered;
-      },
-      fetch(options?: Parameters<typeof client.bans.fetch>[1]) {
-        return client.bans.fetch(guild.id, options);
-      },
-      fetchOne(userId: string, options?: Parameters<typeof client.bans.fetchOne>[2]) {
-        return client.bans.fetchOne(guild.id, userId, options);
-      },
-      create(userId: string, options?: Parameters<typeof client.bans.create>[2]) {
-        return client.bans.create(guild.id, userId, options);
-      },
-      remove(userId: string, reason?: string) {
-        return client.bans.remove(guild.id, userId, reason);
-      },
+      cache,
+      fetch: (options?: Parameters<typeof client.bans.fetch>[1]) =>
+        client.bans.fetch(guild.id, options),
+      fetchOne: (userId: string, options?: Parameters<typeof client.bans.fetchOne>[2]) =>
+        client.bans.fetchOne(guild.id, userId, options),
+      create: (userId: string, options?: Parameters<typeof client.bans.create>[2]) =>
+        client.bans.create(guild.id, userId, options),
+      remove: (userId: string, reason?: string) =>
+        client.bans.remove(guild.id, userId, reason),
     };
   }
 
   /**
    * Gets the guild's invites scoped manager
-   * @returns An object with cache, fetch and delete for this guild's invites
+   * @returns A manager for this guild's invites
    */
-  public get invites() {
+  public get invites(): {
+    cache: Cache<string, InviteStructureInstance>;
+    fetch: (
+      code: string,
+      options?: Parameters<Client["invites"]["fetch"]>[1],
+    ) => ReturnType<Client["invites"]["fetch"]>;
+    delete: (
+      code: string,
+      reason?: string,
+    ) => ReturnType<Client["invites"]["delete"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.invites.cache.filter((invite) => invite.guildId === guild.id);
+
     return {
-      get cache() {
-        const filtered = new Cache<string, InviteStructureInstance>();
-        for (const [key, invite] of client.invites.cache.entries()) {
-          if (invite.guildId === guild.id) {
-            filtered.set(key, invite);
-          }
-        }
-        return filtered;
-      },
-      fetch(code: string, options?: Parameters<typeof client.invites.fetch>[1]) {
-        return client.invites.fetch(code, options);
-      },
-      delete(code: string, reason?: string) {
-        return client.invites.delete(code, reason);
-      },
+      cache,
+      fetch: (code: string, options?: Parameters<typeof client.invites.fetch>[1]) =>
+        client.invites.fetch(code, options),
+      delete: (code: string, reason?: string) => client.invites.delete(code, reason),
     };
   }
 
   /**
    * Gets the guild's scheduled events scoped manager
-   * @returns An object with cache and fetch for this guild's scheduled events
+   * @returns A manager for this guild's scheduled events
    */
-  public get scheduledEvents() {
+  public get scheduledEvents(): {
+    cache: Cache<string, GuildScheduledEventStructureInstance>;
+    fetch: (
+      options?: Parameters<Client["scheduledEvents"]["fetch"]>[1],
+    ) => ReturnType<Client["scheduledEvents"]["fetch"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.scheduledEvents.cache.filter((event) => event.guildId === guild.id);
+
     return {
-      get cache() {
-        const filtered = new Cache<string, GuildScheduledEventStructureInstance>();
-        for (const [key, event] of client.scheduledEvents.cache.entries()) {
-          if (event.guildId === guild.id) {
-            filtered.set(key, event);
-          }
-        }
-        return filtered;
-      },
-      fetch(options?: Parameters<typeof client.scheduledEvents.fetch>[1]) {
-        return client.scheduledEvents.fetch(guild.id, options);
-      },
+      cache,
+      fetch: (options?: Parameters<typeof client.scheduledEvents.fetch>[1]) =>
+        client.scheduledEvents.fetch(guild.id, options),
     };
   }
 
   /**
    * Gets the guild's integrations scoped manager
-   * @returns An object with cache, fetch and delete for this guild's integrations
+   * @returns A manager for this guild's integrations
    */
-  public get integrations() {
+  public get integrations(): {
+    cache: Cache<string, IntegrationStructureInstance>;
+    fetch: (
+      options?: Parameters<Client["integrations"]["fetch"]>[1],
+    ) => ReturnType<Client["integrations"]["fetch"]>;
+    delete: (
+      integrationId: string,
+    ) => ReturnType<Client["integrations"]["delete"]>;
+  } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
+    const cache = client.integrations.cache.filter(
+      (integration) => integration.guildId === guild.id,
+    );
+
     return {
-      get cache() {
-        const filtered = new Cache<string, IntegrationStructureInstance>();
-        for (const [key, integration] of client.integrations.cache.entries()) {
-          if (integration.guildId === guild.id) {
-            filtered.set(key, integration);
-          }
-        }
-        return filtered;
-      },
-      fetch(options?: Parameters<typeof client.integrations.fetch>[1]) {
-        return client.integrations.fetch(guild.id, options);
-      },
-      delete(integrationId: string) {
-        return client.integrations.delete(guild.id, integrationId);
-      },
+      cache,
+      fetch: (options?: Parameters<typeof client.integrations.fetch>[1]) =>
+        client.integrations.fetch(guild.id, options),
+      delete: (integrationId: string) => client.integrations.delete(guild.id, integrationId),
     };
   }
+
 
   /**
    * Checks if this guild equals another guild
