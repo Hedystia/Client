@@ -1,3 +1,5 @@
+type CompareFunction<V> = (a: V, b: V) => number;
+
 /**
  * Cache entry with metadata for intelligent caching
  */
@@ -117,18 +119,18 @@ export interface CacheOptions<V = unknown> {
  * ```typescript
  * // Basic cache with TTL
  * const cache = new Cache({ ttl: 300000, maxSize: 100 });
- * cache.set('key', 'value');
- * const value = cache.get('key');
+ * cache.set("key", "value");
+ * const value = cache.get("key");
  * ```
  *
  * @example
  * ```typescript
  * // Cache with dynamic TTL (frequently accessed items last longer)
  * const cache = new Cache({
- *   ttl: 60000,
- *   dynamicTTL: true,
- *   dynamicTTLMultiplier: 1.2,
- *   dynamicTTLMaxMultiplier: 3
+ * ttl: 60000,
+ * dynamicTTL: true,
+ * dynamicTTLMultiplier: 1.2,
+ * dynamicTTLMaxMultiplier: 3
  * });
  * ```
  *
@@ -136,16 +138,16 @@ export interface CacheOptions<V = unknown> {
  * ```typescript
  * // Per-manager cache configuration in Client
  * const client = new Client({
- *   cache: {
- *     guilds: { maxSize: 1000, ttl: 3600000 },
- *     users: { maxSize: 10000, ttl: 1800000, dynamicTTL: true },
- *     channels: { maxSize: 5000, ttl: 1800000 },
- *     messages: { maxSize: 100, ttl: 60000 },
- *     members: { maxSize: 1000, ttl: 300000 },
- *     roles: { maxSize: 500, ttl: 600000 },
- *     emojis: { maxSize: 200, ttl: 600000 },
- *     stickers: { maxSize: 200, ttl: 600000 }
- *   }
+ * cache: {
+ * guilds: { maxSize: 1000, ttl: 3600000 },
+ * users: { maxSize: 10000, ttl: 1800000, dynamicTTL: true },
+ * channels: { maxSize: 5000, ttl: 1800000 },
+ * messages: { maxSize: 100, ttl: 60000 },
+ * members: { maxSize: 1000, ttl: 300000 },
+ * roles: { maxSize: 500, ttl: 600000 },
+ * emojis: { maxSize: 200, ttl: 600000 },
+ * stickers: { maxSize: 200, ttl: 600000 }
+ * }
  * });
  * ```
  */
@@ -361,6 +363,331 @@ export class Cache<K, V> {
    */
   public clear(): void {
     this._map.clear();
+  }
+
+  /**
+   * Maps the cache entries to an array of a different type
+   * @param fn - The mapping function to execute for each entry
+   * @returns An array containing the mapped results
+   */
+  public map<U>(fn: (val: V, key: K, map: this) => U): U[] {
+    const array: U[] = [];
+    for (const [key, val] of this.entries()) {
+      array.push(fn(val, key, this));
+    }
+    return array;
+  }
+
+  /**
+   * Maps the cache values to an array, filtering out undefined results
+   * @param fn - The mapping function to execute for each entry
+   * @returns An array containing the mapped, non-undefined results
+   */
+  public mapVal<U>(fn: (val: V, key: K, map: this) => U): U[] {
+    const results: U[] = [];
+    for (const [key, val] of this.entries()) {
+      const res = fn(val, key, this);
+      if (res !== undefined) {
+        results.push(res);
+      }
+    }
+    return results;
+  }
+
+  /**
+   * Returns the first non-expired value in the cache
+   * @returns The first value or undefined if the cache is empty
+   */
+  public first(): V | undefined {
+    return this.values().next().value;
+  }
+
+  /**
+   * Returns the last non-expired value in the cache
+   * @returns The last value or undefined if the cache is empty
+   */
+  public last(): V | undefined {
+    const arr = this.array();
+    if (arr.length <= 0) {
+      return undefined;
+    }
+    return arr[arr.length - 1];
+  }
+
+  /**
+   * Returns the last non-expired key in the cache
+   * @returns The last key or undefined if the cache is empty
+   */
+  public lastKey(): K | undefined {
+    const keys = this.keyArray();
+    if (keys.length <= 0) {
+      return undefined;
+    }
+    return keys[keys.length - 1];
+  }
+
+  /**
+   * Finds the first value that satisfies the provided testing function
+   * @param fn - The predicate function to execute for each entry
+   * @returns The found value or undefined
+   */
+  public find(fn: (val: V, key: K, map: this) => boolean): V | undefined {
+    for (const [key, val] of this.entries()) {
+      if (fn(val, key, this)) {
+        return val;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Finds the first key that satisfies the provided testing function
+   * @param fn - The predicate function to execute for each entry
+   * @returns The found key or undefined
+   */
+  public findKey(fn: (val: V, key: K, map: this) => boolean): K | undefined {
+    for (const [key, val] of this.entries()) {
+      if (fn(val, key, this)) {
+        return key;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Creates a new cache with all entries that pass the test implemented by the provided function
+   * @param fn - The predicate function to test each entry
+   * @returns A new Cache instance with the filtered entries
+   */
+  public filter(fn: (val: V, key: K, map: this) => boolean): Cache<K, V> {
+    const result = new Cache<K, V>(this._options);
+    for (const [key, val] of this.entries()) {
+      if (fn(val, key, this)) {
+        result.set(key, val);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Creates a new cache with all entries whose keys pass the test implemented by the provided function
+   * @param fn - The predicate function to test each key
+   * @returns A new Cache instance with the filtered entries
+   */
+  public filterKey(fn: (key: K) => boolean): Cache<K, V> {
+    const result = new Cache<K, V>(this._options);
+    for (const [key, val] of this.entries()) {
+      if (fn(key)) {
+        result.set(key, val);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Determines whether all specified keys exist in the cache
+   * @param keys - The keys to check for existence
+   * @returns True if all keys exist, false otherwise
+   */
+  public hasAll(...keys: K[]): boolean {
+    const target = Array.isArray(keys[0]) ? (keys[0] as K[]) : keys;
+    return target.every((k) => {
+      return this.has(k);
+    });
+  }
+
+  /**
+   * Determines whether any of the specified keys exist in the cache
+   * @param keys - The keys to check for existence
+   * @returns True if at least one key exists, false otherwise
+   */
+  public hasAny(...keys: K[]): boolean {
+    const target = Array.isArray(keys[0]) ? (keys[0] as K[]) : keys;
+    return target.some((k) => {
+      return this.has(k);
+    });
+  }
+
+  /**
+   * Determines whether the specified callback function returns true for any element of the cache
+   * @param fn - The testing function
+   * @returns True if at least one element passes the test
+   */
+  public some(fn: (val: V, key: K, map: this) => boolean): boolean {
+    for (const [key, val] of this.entries()) {
+      if (fn(val, key, this)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Determines whether all the members of the cache satisfy the specified test
+   * @param fn - The testing function
+   * @returns True if all elements pass the test
+   */
+  public every(fn: (val: V, key: K, map: this) => boolean): boolean {
+    for (const [key, val] of this.entries()) {
+      if (!fn(val, key, this)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Executes a provided function once for each cache element
+   * @param fn - The function to execute for each element
+   * @returns The cache instance for chaining
+   */
+  public each(fn: (val: V, key: K, map: this) => void): this {
+    for (const [key, val] of this.entries()) {
+      fn(val, key, this);
+    }
+    return this;
+  }
+
+  /**
+   * Executes a provided function with the cache instance and returns the instance
+   * @param fn - The function to execute
+   * @returns The cache instance for chaining
+   */
+  public tap(fn: (map: this) => void): this {
+    fn(this);
+    return this;
+  }
+
+  /**
+   * Returns an array of non-expired values in the cache
+   * @returns An array of values
+   */
+  public array(): V[] {
+    return Array.from(this.values());
+  }
+
+  /**
+   * Returns an array of non-expired keys in the cache
+   * @returns An array of keys
+   */
+  public keyArray(): K[] {
+    return Array.from(this.keys());
+  }
+
+  /**
+   * Returns a random value from the cache
+   * @returns A random value or undefined if the cache is empty
+   */
+  public random(): V | undefined {
+    const arr = this.array();
+    if (arr.length === 0) {
+      return undefined;
+    }
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  /**
+   * Returns a random key from the cache
+   * @returns A random key or undefined if the cache is empty
+   */
+  public randomKey(): K | undefined {
+    const keys = this.keyArray();
+    if (keys.length === 0) {
+      return undefined;
+    }
+    return keys[Math.floor(Math.random() * keys.length)];
+  }
+
+  /**
+   * Removes an item from the cache by its key
+   * @param key - The key to remove
+   * @returns True if the item existed and was removed, false otherwise
+   */
+  public remove(key: K): boolean {
+    if (this.has(key)) {
+      this.delete(key);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Removes items from the cache that satisfy the provided testing function
+   * @param fn - The testing function
+   */
+  public removeByValue(fn: (val: V, key: K, map: this) => boolean): void {
+    for (const [key, val] of this.entries()) {
+      if (fn(val, key, this)) {
+        this.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Determines whether two caches are equal in size and content
+   * @param cache - The cache to compare against
+   * @returns True if the caches are equal, false otherwise
+   */
+  public equals(cache: Cache<K, V>): boolean {
+    if (!cache) {
+      return false;
+    }
+    if (this.size !== cache.size) {
+      return false;
+    }
+    if (this === cache) {
+      return true;
+    }
+    for (const [key, val] of this.entries()) {
+      if (!cache.has(key) || val !== cache.get(key)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Returns an array of keys that exist in the provided cache but not in this cache
+   * @param cache - The cache to compare against
+   * @returns An array of missing keys or a string detailing the size difference
+   */
+  public difference(cache: Cache<K, V>): K[] | string {
+    if (this.size !== cache.size) {
+      return `size difference by: ${Math.abs(this.size - cache.size)}`;
+    }
+    return cache.keyArray().filter((value) => {
+      return !this.has(value);
+    });
+  }
+
+  /**
+   * Sorts the cache entries in place according to the provided compare function
+   * @param compareFn - The function used to determine the order of the elements
+   * @returns The cache instance for chaining
+   */
+  public sort(compareFn: CompareFunction<V> = Cache.defaultCompareFunction): this {
+    const entries = Array.from(this._map.entries());
+
+    entries.sort((a, b) => {
+      return compareFn(a[1].value, b[1].value);
+    });
+    this._map.clear();
+    for (const [key, entry] of entries) {
+      this._map.set(key, entry);
+    }
+
+    return this;
+  }
+
+  /**
+   * Returns the value at the specified index
+   * @param index - The zero-based index of the element to retrieve
+   * @returns The value at the index or undefined
+   */
+  public at(index = 0): V | undefined {
+    const cacheArr = this.array();
+    return cacheArr[index];
   }
 
   /**
@@ -685,6 +1012,19 @@ export class Cache<K, V> {
       options: this.options,
       stats: this.getStats(),
     };
+  }
+
+  /**
+   * Default comparison function for sorting cache entries
+   * @param a - The first value to compare
+   * @param b - The second value to compare
+   * @returns A number indicating the sort order
+   */
+  public static defaultCompareFunction<V>(a: V, b: V): number {
+    if (a === b) {
+      return 0;
+    }
+    return a > b ? 1 : -1;
   }
 }
 
