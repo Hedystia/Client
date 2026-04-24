@@ -3,7 +3,6 @@ import type {
   APIDMChannel,
   APIGroupDMChannel,
   APIGuildCategoryChannel,
-  APIGuildChannel,
   APIGuildVoiceChannel,
   APIMessage,
   APINewsChannel,
@@ -18,7 +17,6 @@ import type { MessageStructureInstance } from "./MessageStructure";
 import MessageStructure from "./MessageStructure";
 
 type AnyGuildChannel =
-  | APIGuildChannel
   | APITextChannel
   | APINewsChannel
   | APIGuildVoiceChannel
@@ -133,7 +131,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
   /**
    * Whether the channel is in a guild
    */
-  public get isGuild(): boolean {
+  public isGuild(): this is ChannelStructureInstance<AnyGuildChannel> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
     return channel.guild_id !== undefined;
   }
@@ -141,7 +139,9 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
   /**
    * Whether the channel is NSFW
    */
-  public get isNSFW(): boolean {
+  public isNSFW(): this is ChannelStructureInstance<
+    APITextChannel | APINewsChannel | APIThreadChannel | APIGuildVoiceChannel
+  > {
     const channel = this as unknown as APIChannel & { nsfw?: boolean };
     return channel.nsfw ?? false;
   }
@@ -332,12 +332,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
    * @returns A promise that resolves to the cloned channel
    */
   public async clone(name?: string): Promise<ChannelStructureInstance | null> {
-    const channel = this as unknown as APIGuildChannel & {
-      id: string;
-      guild_id: string;
-      type: number;
-      name: string;
-    };
+    const channel = this as unknown as AnyGuildChannel;
     if (!channel.guild_id) {
       return null;
     }
@@ -347,7 +342,7 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
         name: name ?? `${channel.name}-clone`,
         type: channel.type,
       },
-    })) as APIGuildChannel | null;
+    })) as APIChannel | null;
 
     if (!clonedChannel) {
       return null;
