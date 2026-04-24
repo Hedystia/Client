@@ -28,7 +28,11 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
   public readonly client: Client;
 
   constructor(data: T, client: Client) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
     this.client = client;
   }
 
@@ -155,9 +159,9 @@ class ChannelStructure<T extends AnyChannel = AnyChannel> {
     content:
       | string
       | {
-        content?: string;
-        embeds?: Array<{ title?: string; description?: string; color?: number }>;
-      },
+          content?: string;
+          embeds?: Array<{ title?: string; description?: string; color?: number }>;
+        },
   ): Promise<MessageStructureInstance | null> {
     const channel = this as unknown as APIChannel & { guild_id?: string };
     const body = typeof content === "string" ? { content } : content;
@@ -357,5 +361,5 @@ export default ChannelStructure as new <T extends APIChannel = APIChannel>(
   client: Client,
 ) => ChannelStructure<T> & T & { readonly client: Client };
 
-export type ChannelStructureInstance<T extends APIChannel = APIChannel> =
-  InstanceType<typeof ChannelStructure> & T & { readonly client: Client };
+export type ChannelStructureInstance<T extends APIChannel = APIChannel> = ChannelStructure<T> &
+  T & { readonly client: Client };

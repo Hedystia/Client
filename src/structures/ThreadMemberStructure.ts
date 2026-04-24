@@ -7,7 +7,11 @@ class ThreadMemberStructure<T extends APIThreadMember = APIThreadMember> {
   public readonly guildId: string;
 
   constructor(data: T, threadId: string, guildId: string, client: Client) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
     this.threadId = threadId;
     this.guildId = guildId;
     this.client = client;

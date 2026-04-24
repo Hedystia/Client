@@ -6,7 +6,11 @@ class RoleStructure<T extends APIRole = APIRole> {
   public readonly guild_id: string;
 
   constructor(data: T, guild_id: string, client: Client) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
     this.guild_id = guild_id;
     this.client = client;
   }
@@ -112,5 +116,5 @@ export default RoleStructure as new <T extends APIRole = APIRole>(
   client: Client,
 ) => RoleStructure<T> & T & { readonly client: Client };
 
-export type RoleStructureInstance<T extends APIRole = APIRole> = InstanceType<typeof RoleStructure> &
+export type RoleStructureInstance<T extends APIRole = APIRole> = RoleStructure<T> &
   T & { readonly client: Client };

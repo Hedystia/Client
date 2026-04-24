@@ -2,7 +2,11 @@ import type { APIUser } from "discord-api-types/v10";
 
 class UserStructure<T extends APIUser = APIUser> {
   constructor(data: T) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
   }
 
   /**

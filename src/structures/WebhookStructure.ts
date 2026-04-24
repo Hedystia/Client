@@ -5,7 +5,11 @@ class WebhookStructure<T extends APIWebhook = APIWebhook> {
   public readonly client: Client;
 
   constructor(data: T, client: Client) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
     this.client = client;
   }
 

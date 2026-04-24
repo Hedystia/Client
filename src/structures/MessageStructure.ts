@@ -14,7 +14,11 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   public readonly client: Client;
 
   constructor(data: T, channelId: string, guildId: string | null, client: Client) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
     this.channelId = channelId;
     this.guildId = guildId;
     this.client = client;

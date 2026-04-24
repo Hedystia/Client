@@ -6,7 +6,11 @@ class GuildStickerStructure<T extends APISticker = APISticker> {
   public readonly guildId: string;
 
   constructor(data: T, guildId: string, client: Client) {
-    Object.assign(this, data);
+    for (const key in data) {
+      if (!(key in this)) {
+        (this as any)[key] = data[key as keyof T];
+      }
+    }
     this.guildId = guildId;
     this.client = client;
   }
