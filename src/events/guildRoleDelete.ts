@@ -23,7 +23,11 @@ export default class GuildRoleDelete {
       this.client.emit("guildRoleDelete", cachedRole);
       this.client.roles._remove(packet.role_id);
     } else {
-      const roleStructure = new RoleStructure({ id: packet.role_id } as APIRole, this.client);
+      const roleStructure = new RoleStructure(
+        { id: packet.role_id } as APIRole,
+        packet.guild_id,
+        this.client,
+      );
       this.client.emit("guildRoleDelete", roleStructure);
     }
   }

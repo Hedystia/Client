@@ -3,9 +3,11 @@ import type Client from "../client";
 
 class RoleStructure<T extends APIRole = APIRole> {
   public readonly client: Client;
+  public readonly guild_id: string;
 
-  constructor(data: T, client: Client) {
+  constructor(data: T, guild_id: string, client: Client) {
     Object.assign(this, data);
+    this.guild_id = guild_id;
     this.client = client;
   }
 
@@ -106,8 +108,10 @@ class RoleStructure<T extends APIRole = APIRole> {
 
 export default RoleStructure as new <T extends APIRole = APIRole>(
   data: T,
+  guild_id: string,
   client: Client,
 ) => RoleStructure<T> & T & { readonly client: Client };
 
-export type RoleStructureInstance = InstanceType<typeof RoleStructure> &
-  APIRole & { readonly client: Client };
+export type RoleStructureInstance<T extends APIRole = APIRole> = T extends any
+  ? RoleStructure<T> & T & { readonly client: Client }
+  : never;

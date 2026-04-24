@@ -18,7 +18,7 @@ export default class GuildRoleUpdate {
   async _patch(data: { d: GatewayGuildRoleUpdateDispatchData }): Promise<void> {
     const packet = data.d;
 
-    const roleStructure = new RoleStructure(packet.role, this.client);
+    const roleStructure = new RoleStructure(packet.role, packet.guild_id, this.client);
     this.client.roles._update(roleStructure);
 
     this.client.emit("guildRoleUpdate", roleStructure);

@@ -50,7 +50,7 @@ export default class GuildCreate {
     }
 
     for (const role of packet.roles) {
-      const roleStructure = new RoleStructure(role, this.client);
+      const roleStructure = new RoleStructure(role, packet.id, this.client);
       this.client.roles._add(roleStructure, {
         enabled: true,
         force: false,

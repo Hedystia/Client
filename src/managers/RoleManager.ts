@@ -96,7 +96,7 @@ export default class RoleManager {
     if (!role) {
       return null;
     }
-    const roleStructure = new RoleStructure(role, this.client);
+    const roleStructure = new RoleStructure(role, guildId, this.client);
     this._add(roleStructure, {
       enabled: true,
       force: options?.cache?.force ?? false,
