@@ -73,9 +73,8 @@ export default class RoleManager {
    * @param {string} guildId The guild's id
    * @param {string} roleId The role's id
    * @param {boolean} options.cache.force Whether to force fetch the role from the API even if cache is enabled
-   * @param {boolean} options.useStructure Whether to use the structure or the raw data
    * @link https://discord.com/developers/docs/resources/role#get-guild-role
-   * @returns {Promise<APIRole | RoleStructureInstance | null>} The role data
+   * @returns {Promise<RoleStructureInstance | null>} The role data
    */
   public async fetch(
     guildId: string,
@@ -84,9 +83,8 @@ export default class RoleManager {
       cache?: {
         force: boolean;
       };
-      useStructure?: boolean;
     },
-  ): Promise<APIRole | RoleStructureInstance | null> {
+  ): Promise<RoleStructureInstance | null> {
     const cached = this._cache.get(roleId);
     if (cached && !options?.cache?.force) {
       return cached;
@@ -98,15 +96,12 @@ export default class RoleManager {
     if (!role) {
       return null;
     }
-    if (options?.useStructure !== false) {
-      const roleStructure = new RoleStructure(role, this.client);
-      this._add(roleStructure, {
-        enabled: true,
-        force: options?.cache?.force ?? false,
-      });
-      return roleStructure;
-    }
-    return role;
+    const roleStructure = new RoleStructure(role, this.client);
+    this._add(roleStructure, {
+      enabled: true,
+      force: options?.cache?.force ?? false,
+    });
+    return roleStructure;
   }
 
   /**

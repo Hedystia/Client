@@ -39,9 +39,8 @@ export default class GuildManager {
    * Fetches a guild from the API
    * @param {string} id The guild's id
    * @param {boolean} options.cache.force Whether to force fetch the guild from the API even if cache is enabled
-   * @param {boolean} options.useStructure Whether to use the structure or the raw data
    * @link https://discord.com/developers/docs/resources/guild#guild-object
-   * @returns {Promise<APIGuild | null>} The guild data
+   * @returns {Promise<GuildStructureInstance | null>} The guild data
    */
   public async fetch(
     id: string,
@@ -49,24 +48,20 @@ export default class GuildManager {
       cache?: {
         force: boolean;
       };
-      useStructure?: boolean;
     },
-  ): Promise<APIGuild | APIGuild | null> {
+  ): Promise<GuildStructureInstance | null> {
     const guild = (await this.client.rest
       .get(Routes.guild(id))
       .catch(() => null)) as APIGuild | null;
     if (!guild) {
       return null;
     }
-    if (options?.useStructure !== false) {
-      const guildStructure = new GuildStructure(guild, this.client);
-      this._add(guildStructure, {
-        enabled: true,
-        force: options?.cache?.force ?? false,
-      });
-      return guildStructure;
-    }
-    return guild;
+    const guildStructure = new GuildStructure(guild, this.client);
+    this._add(guildStructure, {
+      enabled: true,
+      force: options?.cache?.force ?? false,
+    });
+    return guildStructure;
   }
 
   /**

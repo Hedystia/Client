@@ -73,7 +73,6 @@ export default class ChannelManager {
    * Fetches a channel from the API
    * @param {string} id The channel's id
    * @param {boolean} options.cache.force Whether to force fetch the channel from the API even if cache is enabled
-   * @param {boolean} options.useStructure Whether to use the structure or the raw data
    * @link https://discord.com/developers/docs/resources/channel#get-channel
    * @returns {Promise<APIChannel | ChannelStructureInstance | null>} The channel data
    */
@@ -83,9 +82,8 @@ export default class ChannelManager {
       cache?: {
         force: boolean;
       };
-      useStructure?: boolean;
     },
-  ): Promise<APIChannel | ChannelStructureInstance | null> {
+  ): Promise<ChannelStructureInstance | null> {
     const cached = this._cache.get(id);
     if (cached && !options?.cache?.force) {
       return cached;
@@ -97,15 +95,12 @@ export default class ChannelManager {
     if (!channel) {
       return null;
     }
-    if (options?.useStructure !== false) {
-      const channelStructure = new ChannelStructure(channel, this.client);
-      this._add(channelStructure, {
-        enabled: true,
-        force: options?.cache?.force ?? false,
-      });
-      return channelStructure;
-    }
-    return channel;
+    const channelStructure = new ChannelStructure(channel, this.client);
+    this._add(channelStructure, {
+      enabled: true,
+      force: options?.cache?.force ?? false,
+    });
+    return channelStructure;
   }
 
   /**

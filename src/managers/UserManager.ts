@@ -47,9 +47,8 @@ export default class UserManager {
    * Fetches a user from the API
    * @param {string} id The user's id
    * @param {boolean} options.cache.force Whether to force fetch the user from the API even if cache is enabled
-   * @param {boolean} options.useStructure Whether to use the structure or the raw data
    * @link https://discord.com/developers/docs/resources/user#get-user
-   * @returns {Promise<APIUser | UserStructureInstance | null>} The user data
+   * @returns {Promise<UserStructureInstance | null>} The user data
    */
   public async fetch(
     id: string,
@@ -57,22 +56,18 @@ export default class UserManager {
       cache?: {
         force: boolean;
       };
-      useStructure?: boolean;
     },
-  ): Promise<APIUser | UserStructureInstance | null> {
+  ): Promise<UserStructureInstance | null> {
     const user = (await this.client.rest.get(Routes.user(id)).catch(() => null)) as APIUser | null;
     if (!user) {
       return null;
     }
-    if (options?.useStructure !== false) {
-      const userStructure = new UserStructure(user);
-      this._add(userStructure, {
-        enabled: true,
-        force: options?.cache?.force ?? false,
-      });
-      return userStructure;
-    }
-    return user;
+    const userStructure = new UserStructure(user);
+    this._add(userStructure, {
+      enabled: true,
+      force: options?.cache?.force ?? false,
+    });
+    return userStructure;
   }
 
   /**

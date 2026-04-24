@@ -74,9 +74,8 @@ export default class MemberManager {
    * @param {string} guildId The guild's id
    * @param {string} memberId The member's id
    * @param {boolean} options.cache.force Whether to force fetch the member from the API even if cache is enabled
-   * @param {boolean} options.useStructure Whether to use the structure or the raw data
    * @link https://discord.com/developers/docs/resources/guild#get-guild-member
-   * @returns {Promise<APIGuildMember | MemberStructureInstance | null>} The member data
+   * @returns {Promise<MemberStructureInstance | null>} The member data
    */
   public async fetch(
     guildId: string,
@@ -85,9 +84,8 @@ export default class MemberManager {
       cache?: {
         force: boolean;
       };
-      useStructure?: boolean;
     },
-  ): Promise<APIGuildMember | MemberStructureInstance | null> {
+  ): Promise<MemberStructureInstance | null> {
     const cached = this._cache.get(memberId);
     if (cached && !options?.cache?.force) {
       return cached;
@@ -99,15 +97,12 @@ export default class MemberManager {
     if (!member) {
       return null;
     }
-    if (options?.useStructure !== false) {
-      const memberStructure = new MemberStructure(member, guildId, this.client);
-      this._add(memberStructure, {
-        enabled: true,
-        force: options?.cache?.force ?? false,
-      });
-      return memberStructure;
-    }
-    return member;
+    const memberStructure = new MemberStructure(member, guildId, this.client);
+    this._add(memberStructure, {
+      enabled: true,
+      force: options?.cache?.force ?? false,
+    });
+    return memberStructure;
   }
 
   /**
