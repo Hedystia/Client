@@ -19,10 +19,10 @@ export default class GuildMemberRemove {
     const packet = data.d;
 
     if (packet.user?.id) {
-      const cachedMember = this.client.members.cache.get(packet.user.id);
+      const cachedMember = this.client.members.getMember(packet.guild_id, packet.user.id);
       if (cachedMember) {
         this.client.emit("guildMemberRemove", cachedMember);
-        this.client.members._remove(packet.user.id);
+        this.client.members._remove(packet.guild_id, packet.user.id);
       } else {
         const memberStructure = new MemberStructure(
           packet as unknown as APIGuildMember,

@@ -7,7 +7,7 @@ import { Routes } from "../utils/constants";
 
 export default class MemberManager {
   client: Client;
-  private readonly _cache = new Cache<string, MemberStructureInstance>();
+  private readonly _cache = new Cache<string, Cache<string, MemberStructureInstance>>();
 
   constructor(client: Client) {
     this.client = client;
@@ -26,21 +26,38 @@ export default class MemberManager {
       force: boolean;
     },
   ): void {
-    if (cache.enabled && data.user?.id) {
-      const member = this._cache.get(data.user.id);
+    if (cache.enabled && data.user?.id && data.guildId) {
+      let guildCache = this._cache.get(data.guildId);
+      if (!guildCache) {
+        guildCache = new Cache<string, MemberStructureInstance>();
+        this._cache.set(data.guildId, guildCache);
+      }
+
+      const member = guildCache.get(data.user.id);
       if (member && !cache.force) {
         return;
       }
-      this._cache.set(data.user.id, data);
+      guildCache.set(data.user.id, data);
     }
   }
 
   /**
    * Removes a member from the cache
-   * @param {string} id The member's user id
+   * @param {string} guildId The guild's id
+   * @param {string} [userId] The member's user id (if not provided, removes all members of the guild)
    */
-  public _remove(id: string): void {
-    this._cache.delete(id);
+  public _remove(guildId: string, userId?: string): void {
+    if (userId) {
+      const guildCache = this._cache.get(guildId);
+      if (guildCache) {
+        guildCache.delete(userId);
+        if (guildCache.size === 0) {
+          this._cache.delete(guildId);
+        }
+      }
+    } else {
+      this._cache.delete(guildId);
+    }
   }
 
   /**
@@ -52,21 +69,38 @@ export default class MemberManager {
   }
 
   /**
-   * Gets a member from the cache by user id
-   * @param {string} id The member's user id
+   * Gets a guild's members cache
+   * @param {string} guildId The guild's id
+   * @returns {Cache<string, MemberStructureInstance> | undefined} The guild's member cache or undefined
+   */
+  public get(guildId: string): Cache<string, MemberStructureInstance> | undefined {
+    return this._cache.get(guildId);
+  }
+
+  /**
+   * Gets a specific member from the cache
+   * @param {string} guildId The guild's id
+   * @param {string} userId The member's user id
    * @returns {MemberStructureInstance | undefined} The member or undefined
    */
-  public get(id: string): MemberStructureInstance | undefined {
-    return this._cache.get(id);
+  public getMember(guildId: string, userId: string): MemberStructureInstance | undefined {
+    const guildCache = this._cache.get(guildId);
+    return guildCache?.get(userId);
   }
 
   /**
    * Sets a member in the cache
-   * @param {string} id The member's user id
+   * @param {string} guildId The guild's id
+   * @param {string} userId The member's user id
    * @param {MemberStructureInstance} data The member data
    */
-  public set(id: string, data: MemberStructureInstance): void {
-    this._cache.set(id, data);
+  public set(guildId: string, userId: string, data: MemberStructureInstance): void {
+    let guildCache = this._cache.get(guildId);
+    if (!guildCache) {
+      guildCache = new Cache<string, MemberStructureInstance>();
+      this._cache.set(guildId, guildCache);
+    }
+    guildCache.set(userId, data);
   }
 
   /**
@@ -86,7 +120,8 @@ export default class MemberManager {
       };
     },
   ): Promise<MemberStructureInstance | null> {
-    const cached = this._cache.get(memberId);
+    const guildCache = this._cache.get(guildId);
+    const cached = guildCache?.get(memberId);
     if (cached && !options?.cache?.force) {
       return cached;
     }
@@ -108,9 +143,9 @@ export default class MemberManager {
   /**
    * Gets the members cache
    * @link https://discord.com/developers/docs/resources/guild#guild-member-object
-   * @returns {Cache<string, MemberStructureInstance>} The members cache
+   * @returns {Cache<string, Cache<string, MemberStructureInstance>>} The members cache
    */
-  public get cache(): Cache<string, MemberStructureInstance> {
+  public get cache(): Cache<string, Cache<string, MemberStructureInstance>> {
     return this._cache;
   }
 }

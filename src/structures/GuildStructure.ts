@@ -158,7 +158,8 @@ class GuildStructure<T extends APIGuild = APIGuild> {
   } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
-    const cache = client.members.cache.filter((member) => member.guildId === guild.id);
+    const guildMembersCache = client.members.get(guild.id);
+    const cache = guildMembersCache ?? new Cache<string, MemberStructureInstance>();
 
     return {
       cache,
@@ -240,10 +241,8 @@ class GuildStructure<T extends APIGuild = APIGuild> {
       cache,
       fetch: (options?: Parameters<typeof client.stickers.fetch>[1]) =>
         client.stickers.fetch(guild.id, options),
-      fetchOne: (
-        stickerId: string,
-        options?: Parameters<typeof client.stickers.fetchOne>[2],
-      ) => client.stickers.fetchOne(guild.id, stickerId, options),
+      fetchOne: (stickerId: string, options?: Parameters<typeof client.stickers.fetchOne>[2]) =>
+        client.stickers.fetchOne(guild.id, stickerId, options),
     };
   }
 
@@ -264,10 +263,7 @@ class GuildStructure<T extends APIGuild = APIGuild> {
       userId: string,
       options?: Parameters<Client["bans"]["create"]>[2],
     ) => ReturnType<Client["bans"]["create"]>;
-    remove: (
-      userId: string,
-      reason?: string,
-    ) => ReturnType<Client["bans"]["remove"]>;
+    remove: (userId: string, reason?: string) => ReturnType<Client["bans"]["remove"]>;
   } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
@@ -281,8 +277,7 @@ class GuildStructure<T extends APIGuild = APIGuild> {
         client.bans.fetchOne(guild.id, userId, options),
       create: (userId: string, options?: Parameters<typeof client.bans.create>[2]) =>
         client.bans.create(guild.id, userId, options),
-      remove: (userId: string, reason?: string) =>
-        client.bans.remove(guild.id, userId, reason),
+      remove: (userId: string, reason?: string) => client.bans.remove(guild.id, userId, reason),
     };
   }
 
@@ -296,10 +291,7 @@ class GuildStructure<T extends APIGuild = APIGuild> {
       code: string,
       options?: Parameters<Client["invites"]["fetch"]>[1],
     ) => ReturnType<Client["invites"]["fetch"]>;
-    delete: (
-      code: string,
-      reason?: string,
-    ) => ReturnType<Client["invites"]["delete"]>;
+    delete: (code: string, reason?: string) => ReturnType<Client["invites"]["delete"]>;
   } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
@@ -343,9 +335,7 @@ class GuildStructure<T extends APIGuild = APIGuild> {
     fetch: (
       options?: Parameters<Client["integrations"]["fetch"]>[1],
     ) => ReturnType<Client["integrations"]["fetch"]>;
-    delete: (
-      integrationId: string,
-    ) => ReturnType<Client["integrations"]["delete"]>;
+    delete: (integrationId: string) => ReturnType<Client["integrations"]["delete"]>;
   } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
@@ -360,7 +350,6 @@ class GuildStructure<T extends APIGuild = APIGuild> {
       delete: (integrationId: string) => client.integrations.delete(guild.id, integrationId),
     };
   }
-
 
   /**
    * Checks if this guild equals another guild
