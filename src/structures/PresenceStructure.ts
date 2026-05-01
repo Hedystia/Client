@@ -17,20 +17,6 @@ class PresenceStructure<
     this.guildId = guildId;
     this.client = client;
   }
-
-  public get userId(): string {
-    return (this as unknown as GatewayPresenceUpdateDispatchData & { user_id: string }).user_id;
-  }
-
-  public get status(): PresenceUpdateStatus {
-    return (
-      (this as unknown as GatewayPresenceUpdateDispatchData).status ?? PresenceUpdateStatus.Online
-    );
-  }
-
-  public get activities(): Array<{ name: string; type: number }> {
-    return (this as unknown as GatewayPresenceUpdateDispatchData).activities ?? [];
-  }
 }
 
 export default PresenceStructure as new <

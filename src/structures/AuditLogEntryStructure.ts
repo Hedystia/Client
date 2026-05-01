@@ -15,30 +15,6 @@ class AuditLogEntryStructure<
     }
     this.client = client;
   }
-
-  public get userId(): string | null {
-    return (this as unknown as GatewayGuildAuditLogEntryCreateDispatchData).user_id ?? null;
-  }
-
-  public get actionType(): number {
-    return (this as unknown as GatewayGuildAuditLogEntryCreateDispatchData).action_type;
-  }
-
-  public get changes(): Array<{ key: string; old?: unknown; new?: unknown }> | null {
-    return (this as unknown as GatewayGuildAuditLogEntryCreateDispatchData).changes ?? null;
-  }
-
-  public get options(): unknown | null {
-    return (this as unknown as GatewayGuildAuditLogEntryCreateDispatchData).options ?? null;
-  }
-
-  public get reason(): string | null {
-    return (this as unknown as GatewayGuildAuditLogEntryCreateDispatchData).reason ?? null;
-  }
-
-  public get targetId(): string | null {
-    return (this as unknown as GatewayGuildAuditLogEntryCreateDispatchData).target_id ?? null;
-  }
 }
 
 export default AuditLogEntryStructure as new <

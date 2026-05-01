@@ -12,38 +12,6 @@ class WebhookStructure<T extends APIWebhook = APIWebhook> {
     }
     this.client = client;
   }
-
-  public get id(): string {
-    return (this as unknown as APIWebhook).id;
-  }
-
-  public get type(): number {
-    return (this as unknown as APIWebhook).type;
-  }
-
-  public get guildId(): string | null {
-    return (this as unknown as APIWebhook).guild_id ?? null;
-  }
-
-  public get channelId(): string | null {
-    return (this as unknown as APIWebhook).channel_id ?? null;
-  }
-
-  public get name(): string | null {
-    return (this as unknown as APIWebhook).name ?? null;
-  }
-
-  public get avatar(): string | null {
-    return (this as unknown as APIWebhook).avatar ?? null;
-  }
-
-  public get token(): string | null {
-    return (this as unknown as APIWebhook).token ?? null;
-  }
-
-  public get applicationId(): string | null {
-    return (this as unknown as APIWebhook).application_id ?? null;
-  }
 }
 
 export default WebhookStructure as new <T extends APIWebhook = APIWebhook>(

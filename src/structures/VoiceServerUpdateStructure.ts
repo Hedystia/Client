@@ -14,18 +14,6 @@ class VoiceServerUpdateStructure<
     }
     this.client = client;
   }
-
-  public get token(): string {
-    return (this as unknown as GatewayVoiceServerUpdateDispatchData).token;
-  }
-
-  public get guildId(): string {
-    return (this as unknown as GatewayVoiceServerUpdateDispatchData).guild_id;
-  }
-
-  public get endpoint(): string | null {
-    return (this as unknown as GatewayVoiceServerUpdateDispatchData).endpoint ?? null;
-  }
 }
 
 export default VoiceServerUpdateStructure as new <

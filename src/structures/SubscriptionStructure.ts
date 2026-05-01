@@ -12,18 +12,6 @@ class SubscriptionStructure<T extends APISubscription = APISubscription> {
     }
     this.client = client;
   }
-
-  public get id(): string {
-    return (this as unknown as APISubscription).id;
-  }
-
-  public get userId(): string {
-    return (this as unknown as APISubscription).user_id;
-  }
-
-  public get skuIds(): string[] {
-    return (this as unknown as APISubscription).sku_ids;
-  }
 }
 
 export default SubscriptionStructure as new <T extends APISubscription = APISubscription>(

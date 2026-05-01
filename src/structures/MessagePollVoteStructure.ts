@@ -14,26 +14,6 @@ class MessagePollVoteStructure<
     }
     this.client = client;
   }
-
-  public get userId(): string | null {
-    return (this as unknown as GatewayMessagePollVoteDispatchData).user_id ?? null;
-  }
-
-  public get channelId(): string {
-    return (this as unknown as GatewayMessagePollVoteDispatchData).channel_id;
-  }
-
-  public get messageId(): string {
-    return (this as unknown as GatewayMessagePollVoteDispatchData).message_id;
-  }
-
-  public get guildId(): string | null {
-    return (this as unknown as GatewayMessagePollVoteDispatchData).guild_id ?? null;
-  }
-
-  public get answerId(): number {
-    return (this as unknown as GatewayMessagePollVoteDispatchData).answer_id;
-  }
 }
 
 export default MessagePollVoteStructure as new <

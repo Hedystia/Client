@@ -14,18 +14,6 @@ class ChannelPinsStructure<
     }
     this.client = client;
   }
-
-  public get channelId(): string {
-    return (this as unknown as GatewayChannelPinsUpdateDispatchData).channel_id;
-  }
-
-  public get guildId(): string | null {
-    return (this as unknown as GatewayChannelPinsUpdateDispatchData).guild_id ?? null;
-  }
-
-  public get lastPinTimestamp(): string | null {
-    return (this as unknown as GatewayChannelPinsUpdateDispatchData).last_pin_timestamp ?? null;
-  }
 }
 
 export default ChannelPinsStructure as new <

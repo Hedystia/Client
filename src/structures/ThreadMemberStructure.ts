@@ -16,18 +16,6 @@ class ThreadMemberStructure<T extends APIThreadMember = APIThreadMember> {
     this.guildId = guildId;
     this.client = client;
   }
-
-  public get userId(): string | undefined {
-    return (this as unknown as APIThreadMember).user_id;
-  }
-
-  public get joinTimestamp(): string | undefined {
-    return (this as unknown as APIThreadMember).join_timestamp;
-  }
-
-  public get flags(): number {
-    return (this as unknown as APIThreadMember).flags ?? 0;
-  }
 }
 
 export default ThreadMemberStructure as new <T extends APIThreadMember = APIThreadMember>(

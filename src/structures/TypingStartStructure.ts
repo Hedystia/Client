@@ -14,26 +14,6 @@ class TypingStartStructure<
     }
     this.client = client;
   }
-
-  public get channelId(): string {
-    return (this as unknown as GatewayTypingStartDispatchData).channel_id;
-  }
-
-  public get userId(): string {
-    return (this as unknown as GatewayTypingStartDispatchData).user_id;
-  }
-
-  public get guildId(): string | null {
-    return (this as unknown as GatewayTypingStartDispatchData).guild_id ?? null;
-  }
-
-  public get timestamp(): number {
-    return (this as unknown as GatewayTypingStartDispatchData).timestamp;
-  }
-
-  public get member(): unknown | null {
-    return (this as unknown as GatewayTypingStartDispatchData).member ?? null;
-  }
 }
 
 export default TypingStartStructure as new <

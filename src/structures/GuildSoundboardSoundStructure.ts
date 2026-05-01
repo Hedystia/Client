@@ -14,30 +14,6 @@ class GuildSoundboardSoundStructure<T extends APISoundboardSound = APISoundboard
     this.guildId = guildId;
     this.client = client;
   }
-
-  public get id(): string {
-    return (this as unknown as APISoundboardSound).sound_id;
-  }
-
-  public get name(): string {
-    return (this as unknown as APISoundboardSound).name;
-  }
-
-  public get volume(): number {
-    return (this as unknown as APISoundboardSound).volume ?? 1.0;
-  }
-
-  public get emojiId(): string | null {
-    return (this as unknown as APISoundboardSound).emoji_id ?? null;
-  }
-
-  public get emojiName(): string | null {
-    return (this as unknown as APISoundboardSound).emoji_name ?? null;
-  }
-
-  public get available(): boolean {
-    return (this as unknown as APISoundboardSound).available ?? true;
-  }
 }
 
 export default GuildSoundboardSoundStructure as new <

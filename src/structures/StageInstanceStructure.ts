@@ -12,22 +12,6 @@ class StageInstanceStructure<T extends APIStageInstance = APIStageInstance> {
     }
     this.client = client;
   }
-
-  public get id(): string {
-    return (this as unknown as APIStageInstance).id;
-  }
-
-  public get channelId(): string {
-    return (this as unknown as APIStageInstance).channel_id;
-  }
-
-  public get guildId(): string {
-    return (this as unknown as APIStageInstance).guild_id;
-  }
-
-  public get topic(): string {
-    return (this as unknown as APIStageInstance).topic;
-  }
 }
 
 export default StageInstanceStructure as new <T extends APIStageInstance = APIStageInstance>(

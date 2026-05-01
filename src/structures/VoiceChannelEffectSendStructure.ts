@@ -14,30 +14,6 @@ class VoiceChannelEffectSendStructure<
     }
     this.client = client;
   }
-
-  public get channelId(): string {
-    return (this as unknown as GatewayVoiceChannelEffectSendDispatchData).channel_id;
-  }
-
-  public get guildId(): string {
-    return (this as unknown as GatewayVoiceChannelEffectSendDispatchData).guild_id;
-  }
-
-  public get userId(): string {
-    return (this as unknown as GatewayVoiceChannelEffectSendDispatchData).user_id;
-  }
-
-  public get emoji(): unknown | null {
-    return (this as unknown as GatewayVoiceChannelEffectSendDispatchData).emoji ?? null;
-  }
-
-  public get animationType(): number | null {
-    return (this as unknown as GatewayVoiceChannelEffectSendDispatchData).animation_type ?? null;
-  }
-
-  public get animationId(): number | null {
-    return (this as unknown as GatewayVoiceChannelEffectSendDispatchData).animation_id ?? null;
-  }
 }
 
 export default VoiceChannelEffectSendStructure as new <

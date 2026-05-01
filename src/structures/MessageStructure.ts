@@ -33,14 +33,6 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   }
 
   /**
-   * The message's author
-   */
-  public get author(): APIUser | undefined {
-    const message = this as unknown as APIMessage;
-    return message.author;
-  }
-
-  /**
    * Whether the message is from the current user
    */
   public get isFromCurrentUser(): boolean {

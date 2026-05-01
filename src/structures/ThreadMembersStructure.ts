@@ -16,18 +16,6 @@ class ThreadMembersStructure<
     this.client = client;
     this.threadId = data.id;
   }
-
-  public get guildId(): string {
-    return (this as unknown as GatewayThreadMembersUpdateDispatchData).guild_id;
-  }
-
-  public get addedMembers(): unknown {
-    return (this as unknown as GatewayThreadMembersUpdateDispatchData).added_members;
-  }
-
-  public get removedMemberIds(): string[] {
-    return (this as unknown as GatewayThreadMembersUpdateDispatchData).removed_member_ids ?? [];
-  }
 }
 
 export default ThreadMembersStructure as new <
