@@ -17,8 +17,8 @@ export default class ThreadMemberManager {
     data: ThreadMemberStructureInstance,
     cache: { enabled: boolean; force: boolean },
   ): void {
-    if (cache.enabled && data.threadId && data.userId) {
-      const key = `${data.threadId}:${data.userId}`;
+    if (cache.enabled && data.threadId && data.user_id) {
+      const key = `${data.threadId}:${data.user_id}`;
       const member = this._cache.get(key);
       if (member && !cache.force) {
         return;

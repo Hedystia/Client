@@ -16,12 +16,12 @@ export default class SoundboardSoundManager {
     data: GuildSoundboardSoundStructureInstance,
     cache: { enabled: boolean; force: boolean },
   ): void {
-    if (cache.enabled && data.id) {
-      const sound = this._cache.get(data.id);
+    if (cache.enabled && data.sound_id) {
+      const sound = this._cache.get(data.sound_id);
       if (sound && !cache.force) {
         return;
       }
-      this._cache.set(data.id, data);
+      this._cache.set(data.sound_id, data);
     }
   }
 

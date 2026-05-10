@@ -1,4 +1,4 @@
-import type { APIChannel, APIMessage, APIUser } from "discord-api-types/v10";
+import type { APIChannel, APIMessage } from "discord-api-types/v10";
 import type Client from "../client";
 import type { InteractionCollectorOptions } from "../collectors/InteractionCollector";
 import InteractionCollector from "../collectors/InteractionCollector";
@@ -16,7 +16,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   constructor(data: T, channelId: string, guildId: string | null, client: Client) {
     for (const key in data) {
       if (!(key in this)) {
-        (this as any)[key] = data[key as keyof T];
+        (this as Record<string, unknown>)[key] = data[key as keyof T];
       }
     }
     this.channelId = channelId;

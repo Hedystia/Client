@@ -4,7 +4,7 @@ class UserStructure<T extends APIUser = APIUser> {
   constructor(data: T) {
     for (const key in data) {
       if (!(key in this)) {
-        (this as any)[key] = data[key as keyof T];
+        (this as Record<string, unknown>)[key] = data[key as keyof T];
       }
     }
   }

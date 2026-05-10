@@ -61,7 +61,7 @@ export default class WebhookManager {
 
     if (!options?.cache?.force) {
       for (const webhook of this._cache.values()) {
-        if (webhook.channelId === channelId) {
+        if (webhook.channel_id === channelId) {
           cached.push(webhook);
         }
       }
@@ -94,7 +94,7 @@ export default class WebhookManager {
 
     if (!options?.cache?.force) {
       for (const webhook of this._cache.values()) {
-        if (webhook.guildId === guildId) {
+        if (webhook.guild_id === guildId) {
           cached.push(webhook);
         }
       }

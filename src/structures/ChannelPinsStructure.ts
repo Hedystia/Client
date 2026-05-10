@@ -9,7 +9,7 @@ class ChannelPinsStructure<
   constructor(data: T, client: Client) {
     for (const key in data) {
       if (!(key in this)) {
-        (this as any)[key] = data[key as keyof T];
+        (this as Record<string, unknown>)[key] = data[key as keyof T];
       }
     }
     this.client = client;

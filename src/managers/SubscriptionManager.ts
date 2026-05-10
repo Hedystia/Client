@@ -41,7 +41,7 @@ export default class SubscriptionManager {
 
     if (!options?.cache?.force) {
       for (const subscription of this._cache.values()) {
-        if (subscription.userId === userId) {
+        if (subscription.user_id === userId) {
           cached.push(subscription);
         }
       }

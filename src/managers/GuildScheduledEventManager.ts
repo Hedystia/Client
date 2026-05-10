@@ -45,7 +45,7 @@ export default class GuildScheduledEventManager {
 
     if (!options?.cache?.force) {
       for (const event of this._cache.values()) {
-        if (event.guildId === guildId) {
+        if (event.guild_id === guildId) {
           cached.push(event);
         }
       }

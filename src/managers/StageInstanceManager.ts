@@ -38,7 +38,7 @@ export default class StageInstanceManager {
     options?: { cache?: { force: boolean } },
   ): Promise<StageInstanceStructureInstance | null> {
     const cached = Array.from(this._cache.values()).find(
-      (instance) => instance.channelId === channelId,
+      (instance) => instance.channel_id === channelId,
     );
     if (cached && !options?.cache?.force) {
       return cached;

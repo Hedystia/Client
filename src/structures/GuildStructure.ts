@@ -17,7 +17,7 @@ class GuildStructure<T extends APIGuild = APIGuild> {
   constructor(data: T, client: Client) {
     for (const key in data) {
       if (!(key in this)) {
-        (this as any)[key] = data[key as keyof T];
+        (this as Record<string, unknown>)[key] = data[key as keyof T];
       }
     }
     this.client = client;
@@ -317,7 +317,7 @@ class GuildStructure<T extends APIGuild = APIGuild> {
   } {
     const guild = this as unknown as APIGuild;
     const client = this.client;
-    const cache = client.scheduledEvents.cache.filter((event) => event.guildId === guild.id);
+    const cache = client.scheduledEvents.cache.filter((event) => event.guild_id === guild.id);
 
     return {
       cache,
