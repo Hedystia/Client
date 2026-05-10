@@ -4,6 +4,8 @@ import {
   type ActivityType,
   type APIGatewayBotInfo,
   type APIUser,
+  type GatewayOpcodes,
+  type GatewayVoiceStateUpdateData,
   type PresenceUpdateReceiveStatus,
   PresenceUpdateStatus,
 } from "discord-api-types/v10";
@@ -31,7 +33,10 @@ import type { CacheOptions } from "../utils/cache";
 import { Routes } from "../utils/constants";
 import type Intents from "../utils/intents";
 import VoiceManager from "../voice/VoiceManager";
-import ShardManager from "./ShardManager";
+import { DefaultIdentifyProperties } from "./websocket/constants";
+import { EventDispatcher } from "./websocket/events/EventDispatcher";
+import { WebSocketManager, WebSocketManagerEvents } from "./websocket/WebSocketManager";
+import type { WebSocketShard } from "./websocket/WebSocketShard";
 
 /**
  * Cache configuration for individual managers
@@ -159,7 +164,21 @@ export default class Client extends EventEmitter<ClientEvents> {
   compress?: boolean;
   largeThreshold?: number;
   shardsCount: number | "auto";
-  shards: Map<number, ShardManager>;
+  /**
+   * High-level WebSocket manager that owns every shard.
+   *
+   * @remarks
+   * Available after {@link Client.login} resolves.
+   */
+  websocket?: WebSocketManager;
+  /**
+   * Map of shard id to underlying {@link WebSocketShard}.
+   *
+   * @remarks
+   * Backed by {@link Client.websocket}.shards. Updated each time the
+   * manager spawns or removes a shard.
+   */
+  shards: Map<number, WebSocketShard>;
   users: UserManager;
   channels: ChannelManager;
   guilds: GuildManager;
@@ -178,6 +197,8 @@ export default class Client extends EventEmitter<ClientEvents> {
   soundboardSounds: SoundboardSoundManager;
   webhooks: WebhookManager;
   voice: VoiceManager;
+
+  private dispatcher: EventDispatcher;
 
   constructor(options: ClientOptions) {
     super();
@@ -227,88 +248,70 @@ export default class Client extends EventEmitter<ClientEvents> {
     };
 
     this.ws = options?.ws;
+
+    this.dispatcher = new EventDispatcher(this);
   }
 
   /**
-   * Logs in to the gateway with rate limit handling
-   * @link https://discord.com/developers/docs/topics/gateway#connecting
+   * Logs in to the gateway, spawning every required shard.
+   *
+   * @see {@link https://discord.com/developers/docs/topics/gateway#connecting}
    */
   async login(): Promise<void> {
-    const gatewayData = await this.getGatewayBot();
-    this.shardsCount = this.shardsCount === "auto" ? gatewayData.shards : this.shardsCount;
-
-    for (let i = 0; i < this.shardsCount; i++) {
-      this.shards.set(i, new ShardManager(i, this));
+    const gatewayInformation = await this.getGatewayBot();
+    if (this.shardsCount === "auto") {
+      this.shardsCount = gatewayInformation.shards;
     }
 
-    await this.connectShards(0, this.shards.size - 1, gatewayData.sessionStartLimit);
+    const manager = new WebSocketManager({
+      token: options_token(this.token),
+      intents: typeof this.intents === "number" ? this.intents : Number(this.intents),
+      shardCount: this.shardsCount,
+      identifyProperties: DefaultIdentifyProperties,
+      gatewayInformation: toAPIGatewayBotInfo(gatewayInformation),
+      largeThreshold: this.largeThreshold,
+      compress: this.compress,
+      presence: this.presence?.activities
+        ? {
+            activities: this.presence.activities.map((activity) => ({
+              name: activity.name,
+              type: activity.type,
+              url: activity.url,
+              state: activity.state,
+            })),
+            status: this.presence.status,
+            since: null,
+            afk: false,
+          }
+        : undefined,
+      handlePayload: (shardId, packet) => {
+        this.emit("dispatch", packet, shardId);
+        this.dispatcher.dispatch(packet);
+      },
+    });
+
+    this.websocket = manager;
+    this.shards = manager.shards;
+
+    manager.on(WebSocketManagerEvents.ShardReady, (id) => this.emit("shardReady", id));
+    manager.on(WebSocketManagerEvents.ShardDisconnect, ({ shardId, code }) =>
+      this.emit("shardDisconnect", { id: shardId, code }),
+    );
+    manager.on(WebSocketManagerEvents.ShardReconnecting, (id) =>
+      this.emit("shardReconnecting", id),
+    );
+    manager.on(WebSocketManagerEvents.ShardError, (data) => this.emit("shardError", data));
+    manager.on(WebSocketManagerEvents.Hello, (interval, id) => this.emit("hello", interval, id));
+    manager.on(WebSocketManagerEvents.HeartbeatAck, (id) => this.emit("heartbeatACK", id));
+
+    await manager.connect();
   }
 
   /**
-   * Connects shards while respecting Discord's session start limit
-   * @param {number} startIndex The index of the first shard to connect
-   * @param {number} endIndex The index of the last shard to connect
-   * @param {Object} sessionStartLimit The session start limit data
-   * @private
+   * Disconnects every shard and clears the manager.
    */
-  private async connectShards(
-    startIndex: number,
-    endIndex: number,
-    sessionStartLimit: {
-      total: number;
-      remaining: number;
-      resetAfter: number;
-      maxConcurrency: number;
-    },
-  ): Promise<void> {
-    if (startIndex > endIndex) {
-      return;
-    }
-
-    const remaining = sessionStartLimit.remaining;
-    const maxConcurrency = sessionStartLimit.maxConcurrency;
-
-    const LOW_REMAINING_THRESHOLD = Math.max(5, maxConcurrency);
-
-    if (remaining <= LOW_REMAINING_THRESHOLD && startIndex <= endIndex) {
-      await new Promise((resolve) => setTimeout(resolve, sessionStartLimit.resetAfter));
-      const newGatewayData = await this.getGatewayBot();
-      return this.connectShards(startIndex, endIndex, newGatewayData.sessionStartLimit);
-    }
-
-    const connectCount = Math.min(
-      maxConcurrency,
-      remaining - LOW_REMAINING_THRESHOLD,
-      endIndex - startIndex + 1,
-    );
-
-    const connectPromises = [];
-    for (let i = 0; i < connectCount; i++) {
-      const shardIndex = startIndex + i;
-      if (shardIndex <= endIndex) {
-        const shard = this.shards.get(shardIndex);
-        if (shard) {
-          connectPromises.push(shard.connect());
-        }
-      }
-    }
-
-    await Promise.all(connectPromises);
-
-    if (startIndex + connectCount <= endIndex) {
-      const updatedGatewayData = await this.getGatewayBot();
-      return this.connectShards(
-        startIndex + connectCount,
-        endIndex,
-        updatedGatewayData.sessionStartLimit,
-      );
-    }
-  }
-
   disconnect(): void {
-    for (const [_, shard] of this.shards) {
-      shard.disconnect();
-    }
+    this.websocket?.destroy();
   }
 
   get uptime(): number {
@@ -330,27 +333,13 @@ export default class Client extends EventEmitter<ClientEvents> {
   }
 
   get ping(): number {
-    if (this.shards.size === 0) {
-      return 0;
-    }
-
-    let totalPing = 0;
-    let activeShards = 0;
-
-    for (const [_, shard] of this.shards) {
-      if (shard.ping > 0) {
-        totalPing += shard.ping;
-        activeShards++;
-      }
-    }
-
-    return activeShards > 0 ? Math.round(totalPing / activeShards) : 0;
+    return this.websocket?.latency ?? 0;
   }
 
   /**
-   * Updates the presence of the bot
-   * @param {Partial<Pick<Presence, "activities" | "status">>} options The options to update the presence with
-   * @link https://discord.com/developers/docs/topics/gateway#update-presence
+   * Updates the presence of the bot across every shard.
+   *
+   * @see {@link https://discord.com/developers/docs/topics/gateway#update-presence}
    */
   updatePresence(options: Partial<Pick<Presence, "activities" | "status">>): void {
     this.presence = {
@@ -358,9 +347,37 @@ export default class Client extends EventEmitter<ClientEvents> {
       ...options,
     };
 
-    for (const [_, shard] of this.shards) {
-      shard.updatePresence(options);
+    this.websocket?.broadcastPresence({
+      activities:
+        this.presence.activities.map((activity) => ({
+          name: activity.name,
+          type: activity.type,
+          url: activity.url,
+          state: activity.state,
+        })) ?? [],
+      status: this.presence.status,
+      since: null,
+      afk: false,
+    });
+  }
+
+  /**
+   * Updates the bot voice state for the given guild.
+   *
+   * @see {@link https://discord.com/developers/docs/topics/gateway#update-voice-state}
+   */
+  updateVoiceState(data: GatewayVoiceStateUpdateData): void {
+    this.websocket?.updateVoiceState(data);
+  }
+
+  /**
+   * Sends a raw gateway payload through the appropriate shard.
+   */
+  async sendToShard(shardId: number, op: GatewayOpcodes, data: unknown): Promise<void> {
+    if (!this.websocket) {
+      throw new Error("Client is not connected");
     }
+    await this.websocket.send(shardId, { op, d: data } as Parameters<WebSocketManager["send"]>[1]);
   }
 
   /**
@@ -526,4 +543,37 @@ export default class Client extends EventEmitter<ClientEvents> {
     }
     await this.rest.delete(Routes.applicationGuildCommand(this.me.id, guildId, commandId));
   }
+}
+
+/**
+ * Strips the `Bot ` prefix the client adds in the constructor.
+ */
+function options_token(token: string): string {
+  return token.startsWith("Bot ") ? token.slice(4) : token;
+}
+
+/**
+ * Converts the camelCased gateway info returned by {@link Client.getGatewayBot}
+ * back into the snake_case shape expected by {@link WebSocketManager}.
+ */
+function toAPIGatewayBotInfo(info: {
+  url: string;
+  shards: number;
+  sessionStartLimit: {
+    total: number;
+    remaining: number;
+    resetAfter: number;
+    maxConcurrency: number;
+  };
+}): APIGatewayBotInfo {
+  return {
+    url: info.url,
+    shards: info.shards,
+    session_start_limit: {
+      total: info.sessionStartLimit.total,
+      remaining: info.sessionStartLimit.remaining,
+      reset_after: info.sessionStartLimit.resetAfter,
+      max_concurrency: info.sessionStartLimit.maxConcurrency,
+    },
+  };
 }

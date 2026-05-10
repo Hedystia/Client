@@ -73,17 +73,15 @@ export default class GuildCreate {
   requestMembers(guild: GuildCreateData) {
     const guildId = guild.id;
     for (const [_, shard] of this.client.shards) {
-      if (shard.ws) {
-        shard.ws.send(
-          JSON.stringify({
-            op: GatewayOpcodes.RequestGuildMembers,
-            d: {
-              guild_id: guildId,
-              query: "",
-              limit: 0,
-            },
-          }),
-        );
+      if (shard.isOpen) {
+        shard.send({
+          op: GatewayOpcodes.RequestGuildMembers,
+          d: {
+            guild_id: guildId,
+            query: "",
+            limit: 0,
+          },
+        });
       }
     }
   }
