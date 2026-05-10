@@ -105,8 +105,10 @@ class AudioPlayer {
       const stream =
         resource instanceof Readable ? resource : createReadStream((resource as ReadStream).path);
       this.stream = stream;
-      // biome-ignore lint/style/noNonNullAssertion: ffmpeg is guaranteed to be non-null here
-      stream.pipe(this.ffmpeg!.stdin!);
+      const pipe = this.ffmpeg?.stdin;
+      if (pipe) {
+        stream.pipe(pipe);
+      }
     }
 
     this.playable = true;
