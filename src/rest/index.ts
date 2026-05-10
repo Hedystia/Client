@@ -113,8 +113,7 @@ class REST {
       headers["X-Audit-Log-Reason"] = options.reason;
     }
 
-    // biome-ignore lint/suspicious/noExplicitAny: Body type for fetch
-    let body: any;
+    let body: FormData | Buffer | string | undefined;
 
     if (options.body) {
       if (options.body instanceof FormData) {
