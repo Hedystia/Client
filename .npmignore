@@ -9,3 +9,4 @@ tsdown.config.ts
 .vscode/
 .git/
 .gitignore
+bunfig.toml
