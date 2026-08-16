@@ -121,6 +121,150 @@ export class Collection<K, V> extends Map<K, V> {
   }
 
   /**
+   * Returns a cached value or stores the value returned by the factory.
+   * @param key - The key to resolve.
+   * @param defaultValueGenerator - Factory used when the key is absent.
+   * @returns The existing or newly created value.
+   */
+  public ensure(key: K, defaultValueGenerator: (key: K, collection: this) => V): V {
+    if (this.has(key)) {
+      return this.get(key) as V;
+    }
+    const value = defaultValueGenerator(key, this);
+    this.set(key, value);
+    return value;
+  }
+
+  /**
+   * Resolves a key, value, or predicate to a collection value.
+   * @param resolvable - A key, value, or predicate to resolve.
+   * @returns The resolved value, or undefined when it is not present.
+   */
+  public resolve(
+    resolvable: K | V | ((value: V, key: K, collection: this) => boolean),
+  ): V | undefined {
+    if (typeof resolvable === "function") {
+      return this.find(resolvable as (value: V, key: K, collection: this) => boolean);
+    }
+    const byKey = this.get(resolvable as K);
+    if (byKey !== undefined) {
+      return byKey;
+    }
+    for (const value of this.values()) {
+      if (value === resolvable) {
+        return value;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Resolves a key or value to its collection key.
+   * @param resolvable - A key or value to resolve.
+   * @returns The resolved key, or null when it is not present.
+   */
+  public resolveId(resolvable: K | V | null | undefined): K | null {
+    if (resolvable === null || resolvable === undefined) {
+      return null;
+    }
+    if (this.has(resolvable as K)) {
+      return resolvable as K;
+    }
+    for (const [key, value] of this.entries()) {
+      if (value === resolvable) {
+        return key;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Checks whether every supplied key is present.
+   * @param keys - Keys to check.
+   * @returns Whether every key is present.
+   */
+  public hasAll(...keys: K[]): boolean {
+    return keys.every((key) => this.has(key));
+  }
+
+  /**
+   * Checks whether at least one supplied key is present.
+   * @param keys - Keys to check.
+   * @returns Whether at least one key is present.
+   */
+  public hasAny(...keys: K[]): boolean {
+    return keys.some((key) => this.has(key));
+  }
+
+  /**
+   * Deletes every entry matching a predicate.
+   * @param fn - Predicate used to select entries for deletion.
+   * @returns The number of deleted entries.
+   */
+  public sweep(fn: (value: V, key: K, collection: this) => boolean): number {
+    let deleted = 0;
+    for (const [key, value] of this.entries()) {
+      if (fn(value, key, this) && this.delete(key)) {
+        deleted++;
+      }
+    }
+    return deleted;
+  }
+
+  /**
+   * Runs a callback for every entry and returns this collection.
+   * @param fn - Callback to execute.
+   * @returns This collection.
+   */
+  public each(fn: (value: V, key: K, collection: this) => void): this {
+    this.forEach(fn);
+    return this;
+  }
+
+  /**
+   * Executes a callback with this collection and returns it.
+   * @param fn - Callback to execute.
+   * @returns This collection.
+   */
+  public tap(fn: (collection: this) => void): this {
+    fn(this);
+    return this;
+  }
+
+  /**
+   * Returns the key at an index, supporting negative indexes.
+   * @param index - The index to read.
+   * @returns The key, or undefined when out of bounds.
+   */
+  public keyAt(index: number): K | undefined {
+    const keys = [...this.keys()];
+    const normalized = index < 0 ? keys.length + index : index;
+    return keys[normalized];
+  }
+
+  /**
+   * Returns the value at an index, supporting negative indexes.
+   * @param index - The index to read.
+   * @returns The value, or undefined when out of bounds.
+   */
+  public valueAt(index: number): V | undefined {
+    return this.at(index);
+  }
+
+  /**
+   * Reverses this collection's insertion order.
+   * @returns This collection.
+   */
+  public reverse(): this {
+    const entries = [...this.entries()].reverse();
+    super.clear();
+    for (const [key, value] of entries) {
+      super.set(key, value);
+    }
+    return this;
+  }
+
+  /**
    * Identical to Array.prototype.at().
    * Returns the item at a given index, allowing for positive and negative integers.
    * @param index - The index of the element to obtain
@@ -568,6 +712,9 @@ export class Collection<K, V> extends Map<K, V> {
    * @returns A new collection with the first N elements
    */
   public take(n: number): Collection<K, V> {
+    if (n <= 0) {
+      return new Collection();
+    }
     if (n >= this.size) {
       return this.clone();
     }
@@ -592,6 +739,9 @@ export class Collection<K, V> extends Map<K, V> {
    * @returns A new collection with the last N elements
    */
   public takeLast(n: number): Collection<K, V> {
+    if (n <= 0) {
+      return new Collection();
+    }
     if (n >= this.size) {
       return this.clone();
     }
@@ -606,6 +756,9 @@ export class Collection<K, V> extends Map<K, V> {
    * @returns A new collection without the first N elements
    */
   public drop(n: number): Collection<K, V> {
+    if (n <= 0) {
+      return this.clone();
+    }
     if (n >= this.size) {
       return new Collection();
     }
@@ -620,6 +773,9 @@ export class Collection<K, V> extends Map<K, V> {
    * @returns A new collection without the last N elements
    */
   public dropLast(n: number): Collection<K, V> {
+    if (n <= 0) {
+      return this.clone();
+    }
     if (n >= this.size) {
       return new Collection();
     }
