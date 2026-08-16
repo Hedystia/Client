@@ -1,5 +1,6 @@
 import type { APIEmoji } from "discord-api-types/v10";
 import type Client from "../client";
+import { CDN, ImageFormat } from "../utils/constants";
 
 class GuildEmojiStructure<T extends APIEmoji = APIEmoji> {
   public readonly client: Client;
@@ -32,8 +33,11 @@ class GuildEmojiStructure<T extends APIEmoji = APIEmoji> {
   }): string {
     const emoji = this as unknown as APIEmoji & { id: string; animated?: boolean };
     const size = options?.size ?? 1024;
-    const extension = options?.extension ?? (emoji.animated ? "gif" : "png");
-    return `https://cdn.discordapp.com/emojis/${emoji.id}.${extension}?size=${size}`;
+    const extension =
+      options?.extension === "jpg"
+        ? ImageFormat.JPEG
+        : (options?.extension ?? (emoji.animated ? ImageFormat.GIF : ImageFormat.PNG));
+    return `${CDN.emoji(emoji.id, extension as Parameters<typeof CDN.emoji>[1])}?size=${size}`;
   }
 
   /**
@@ -68,6 +72,32 @@ class GuildEmojiStructure<T extends APIEmoji = APIEmoji> {
   }
 
   /**
+   * Edits this emoji.
+   *
+   * @param data - The official Discord emoji-edit body.
+   * @param reason - Optional audit-log reason.
+   * @returns The edited emoji, or null when Discord returned no data.
+   */
+  public edit(
+    data: Parameters<Client["emojis"]["edit"]>[2],
+    reason?: string,
+  ): Promise<GuildEmojiStructureInstance | null> {
+    const emoji = this as unknown as APIEmoji & { id: string };
+    return this.client.emojis.edit(this.guildId, emoji.id, data, reason);
+  }
+
+  /**
+   * Deletes this emoji.
+   *
+   * @param reason - Optional audit-log reason.
+   * @returns A promise that resolves when Discord accepts the request.
+   */
+  public delete(reason?: string): Promise<void> {
+    const emoji = this as unknown as APIEmoji & { id: string };
+    return this.client.emojis.delete(this.guildId, emoji.id, reason);
+  }
+
+  /**
    * Checks if this emoji equals another emoji
    * @param emoji - The emoji to compare with
    * @returns Whether the emojis are equal
@@ -85,5 +115,5 @@ export default GuildEmojiStructure as new <T extends APIEmoji = APIEmoji>(
   client: Client,
 ) => GuildEmojiStructure<T> & T & { readonly guildId: string; readonly client: Client };
 
-export type GuildEmojiStructureInstance = InstanceType<typeof GuildEmojiStructure> &
+export type GuildEmojiStructureInstance = GuildEmojiStructure<APIEmoji> &
   APIEmoji & { readonly guildId: string; readonly client: Client };
