@@ -1,129 +1,143 @@
+import type { GatewayMessageReactionRemoveDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import type { MessageReactionStructureInstance } from "../structures/MessageReactionStructure";
 import type { CollectorOptions } from "./Collector";
 import Collector from "./Collector";
 
-export interface MessageReaction {
-  emoji: {
-    id: string | null;
-    name: string | null;
-    animated?: boolean;
-  };
-  count: number;
-  me: boolean;
-  message_id: string;
-  channel_id: string;
-  guild_id?: string;
-  user_id?: string;
-}
+/**
+ * Official Discord gateway data shared by reaction add and remove events.
+ *
+ * @see https://docs.discord.com/developers/topics/gateway-events#message-reaction-add
+ * @see https://docs.discord.com/developers/topics/gateway-events#message-reaction-remove
+ */
+export type MessageReaction = GatewayMessageReactionRemoveDispatchData;
 
 export interface ReactionCollectorOptions extends CollectorOptions<MessageReaction> {
-  /** Message ID to filter reactions */
+  /** Message ID to filter reactions. */
   messageId?: string;
-  /** Channel ID to filter reactions */
+  /** Channel ID to filter reactions. */
   channelId?: string;
-  /** Guild ID to filter reactions */
+  /** Guild ID to filter reactions. */
   guildId?: string;
-  /** User ID to filter reactions */
+  /** User ID to filter reactions. */
   userId?: string;
-  /** Emoji ID or name to filter reactions */
+  /** Emoji ID or name to filter reactions. */
   emoji?: string;
-  /** Maximum number of reactions to collect */
+  /** Maximum number of reactions to collect. */
   maxReactions?: number;
 }
 
 class ReactionCollector extends Collector<string, MessageReaction, [string]> {
   private readonly options: ReactionCollectorOptions;
   private readonly _reactions: Map<string, number>;
+  private readonly reactionAddListener = (reaction: MessageReactionStructureInstance): void => {
+    this.handle(reaction, reaction.user_id).catch(() => undefined);
+  };
+  private readonly reactionRemoveListener = (reaction: MessageReactionStructureInstance): void => {
+    this.disposeReaction(reaction, reaction.user_id);
+  };
 
   constructor(client: Client, options: ReactionCollectorOptions = {}) {
     super(client, options);
     this.options = options;
     this._reactions = new Map();
+    this.client.on("messageReactionAdd", this.reactionAddListener);
+    this.client.on("messageReactionRemove", this.reactionRemoveListener);
   }
 
   /**
-   * Handles incoming reactions
-   * @param reaction - The reaction to handle
-   * @param userId - The user ID who added the reaction
-   * @returns Whether the reaction was collected
+   * Stops this collector and removes its gateway reaction listeners.
+   * @param reason - The reason for stopping the collector.
+   */
+  public override stop(reason = "user"): void {
+    this.client.off("messageReactionAdd", this.reactionAddListener);
+    this.client.off("messageReactionRemove", this.reactionRemoveListener);
+    super.stop(reason);
+  }
+
+  /**
+   * Handles an incoming reaction.
+   * @param reaction - The official Discord reaction payload.
+   * @param userId - The ID of the user who reacted.
+   * @returns Whether the reaction was collected.
    */
   public override async handle(reaction: MessageReaction, userId?: string): Promise<boolean> {
-    // Filter by message ID
+    if (!this.matches(reaction, userId)) {
+      return false;
+    }
+
+    const emojiKey = reaction.emoji.id ?? reaction.emoji.name ?? "unknown";
+    const count = this._reactions.get(emojiKey) ?? 0;
+    if (this.options.maxReactions && count + 1 > this.options.maxReactions) {
+      return false;
+    }
+    this._reactions.set(emojiKey, count + 1);
+
+    return super.handleWithArgs(reaction, userId ?? reaction.user_id);
+  }
+
+  /**
+   * Removes a reaction from the collected set when disposal is enabled.
+   * @param reaction - The official Discord reaction payload.
+   * @param userId - The ID of the user whose reaction was removed.
+   */
+  private disposeReaction(reaction: MessageReaction, userId: string): void {
+    if (!this.dispose || !this.matches(reaction, userId)) {
+      return;
+    }
+
+    if (this.collected.delete(this.getKey(reaction, userId))) {
+      this.emit("dispose", reaction, userId);
+    }
+  }
+
+  /**
+   * Checks whether a reaction matches this collector's filters.
+   * @param reaction - The official Discord reaction payload.
+   * @param userId - The ID of the user who reacted.
+   * @returns Whether the reaction matches.
+   */
+  private matches(reaction: MessageReaction, userId?: string): boolean {
     if (this.options.messageId && reaction.message_id !== this.options.messageId) {
       return false;
     }
-
-    // Filter by channel ID
     if (this.options.channelId && reaction.channel_id !== this.options.channelId) {
       return false;
     }
-
-    // Filter by guild ID
     if (this.options.guildId && reaction.guild_id !== this.options.guildId) {
       return false;
     }
-
-    // Filter by user ID
-    if (this.options.userId && userId && userId !== this.options.userId) {
+    if (this.options.userId && userId !== this.options.userId) {
       return false;
     }
-
-    // Filter by emoji
     if (this.options.emoji) {
       const emojiId = reaction.emoji.id ?? reaction.emoji.name;
       if (emojiId !== this.options.emoji) {
         return false;
       }
     }
-
-    // Track reactions
-    const emojiKey = reaction.emoji.id ?? reaction.emoji.name ?? "unknown";
-    const count = this._reactions.get(emojiKey) ?? 0;
-    this._reactions.set(emojiKey, count + 1);
-
-    // Check max reactions
-    if (this.options.maxReactions && count + 1 > this.options.maxReactions) {
-      return false;
-    }
-
-    return super.handleWithArgs(reaction, userId ?? "unknown");
+    return true;
   }
 
   /**
-   * Gets the key for a reaction
-   * @param reaction - The reaction to get the key for
-   * @returns The reaction key
+   * Gets the key for a reaction.
+   * @param reaction - The official Discord reaction payload.
+   * @param userId - The ID of the user who reacted.
+   * @returns The unique reaction key.
    */
-  protected getKey(reaction: MessageReaction): string {
-    const userId = reaction.user_id ?? "unknown";
-    return `${reaction.message_id}:${reaction.emoji.id ?? reaction.emoji.name}:${userId}`;
+  protected getKey(reaction: MessageReaction, userId?: string): string {
+    return `${reaction.message_id}:${reaction.emoji.id ?? reaction.emoji.name}:${userId ?? reaction.user_id}`;
   }
 
   /**
-   * Emits an event
-   * @param event - The event to emit
-   * @param args - Event arguments
-   */
-  protected emit(_event: string, ..._args: unknown[]): void {
-    // Subclasses should implement this
-  }
-
-  /**
-   * Checks if the collector should end
-   */
-  protected checkEnd(): void {
-    // Default implementation does nothing
-  }
-
-  /**
-   * Gets the total number of unique reactions
+   * Gets the number of unique emoji keys seen by this collector.
    */
   public get uniqueReactions(): number {
     return this._reactions.size;
   }
 
   /**
-   * Gets the total number of reactions
+   * Gets the total number of reactions seen by this collector.
    */
   public get totalReactions(): number {
     let total = 0;
@@ -134,11 +148,11 @@ class ReactionCollector extends Collector<string, MessageReaction, [string]> {
   }
 
   /**
-   * Creates a new reaction collector for a message
-   * @param client - The client instance
-   * @param messageId - The message ID to collect reactions from
-   * @param options - Collector options
-   * @returns A new reaction collector
+   * Creates a reaction collector for a message.
+   * @param client - The client instance.
+   * @param messageId - The message ID to collect reactions from.
+   * @param options - Collector options.
+   * @returns A new reaction collector.
    */
   public static createMessageCollector(
     client: Client,
@@ -149,11 +163,11 @@ class ReactionCollector extends Collector<string, MessageReaction, [string]> {
   }
 
   /**
-   * Creates a new reaction collector for an emoji
-   * @param client - The client instance
-   * @param emoji - The emoji ID or name to collect
-   * @param options - Collector options
-   * @returns A new reaction collector
+   * Creates a reaction collector for an emoji.
+   * @param client - The client instance.
+   * @param emoji - The emoji ID or name to collect.
+   * @param options - Collector options.
+   * @returns A new reaction collector.
    */
   public static createEmojiCollector(
     client: Client,
