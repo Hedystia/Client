@@ -55,14 +55,10 @@ export default class ThreadMemberManager {
       }
     }
 
-    const query = new URLSearchParams();
-    if (options?.withMember) {
-      query.set("with_member", "true");
-    }
-
-    const members = (await this.client.rest.get(
-      `/channels/${threadId}/thread-members?${query.toString()}`,
-    )) as (APIThreadMember & { guild_id: string })[] | null;
+    const query = options?.withMember ? { with_member: "true" } : undefined;
+    const members = (await this.client.rest.get(Routes.threadMembers(threadId), {
+      query,
+    })) as (APIThreadMember & { guild_id: string })[] | null;
 
     if (!members) {
       return cached;
