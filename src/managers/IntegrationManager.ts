@@ -3,6 +3,7 @@ import type Client from "../client";
 import type { IntegrationStructureInstance } from "../structures/IntegrationStructure";
 import IntegrationStructure from "../structures/IntegrationStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class IntegrationManager {
   client: Client;
@@ -51,7 +52,7 @@ export default class IntegrationManager {
       }
     }
 
-    const integrations = (await this.client.rest.get(`/guilds/${guildId}/integrations`)) as
+    const integrations = (await this.client.rest.get(Routes.guildIntegrations(guildId))) as
       | APIGuildIntegration[]
       | null;
 
@@ -67,7 +68,7 @@ export default class IntegrationManager {
   }
 
   public async delete(guildId: string, integrationId: string): Promise<void> {
-    await this.client.rest.delete(`/guilds/${guildId}/integrations/${integrationId}`);
+    await this.client.rest.delete(Routes.guildIntegration(guildId, integrationId));
     this._remove(integrationId);
   }
 
