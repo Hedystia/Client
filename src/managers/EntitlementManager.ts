@@ -1,8 +1,17 @@
-import type { APIEntitlement } from "discord-api-types/v10";
+import type {
+  APIEntitlement,
+  RESTDeleteAPIEntitlementResult,
+  RESTGetAPIEntitlementResult,
+  RESTGetAPIEntitlementsQuery,
+  RESTPostAPIEntitlementConsumeResult,
+  RESTPostAPIEntitlementJSONBody,
+  RESTPostAPIEntitlementResult,
+} from "discord-api-types/v10";
 import type Client from "../client";
 import type { EntitlementStructureInstance } from "../structures/EntitlementStructure";
 import EntitlementStructure from "../structures/EntitlementStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class EntitlementManager {
   client: Client;
@@ -33,11 +42,9 @@ export default class EntitlementManager {
     return this._cache.get(id);
   }
 
-  public async fetch(options?: {
-    userId?: string;
-    skuIds?: string[];
-    cache?: { force: boolean };
-  }): Promise<EntitlementStructureInstance[]> {
+  public async fetch(
+    options?: RESTGetAPIEntitlementsQuery & { cache?: { force: boolean } },
+  ): Promise<EntitlementStructureInstance[]> {
     const cached: EntitlementStructureInstance[] = [];
 
     if (!options?.cache?.force) {
@@ -45,22 +52,19 @@ export default class EntitlementManager {
         cached.push(entitlement);
       }
 
-      if (cached.length > 0 && !options?.userId && !options?.skuIds) {
+      if (cached.length > 0 && Object.keys(options ?? {}).every((key) => key === "cache")) {
         return cached;
       }
     }
 
-    const query = new URLSearchParams();
-    if (options?.userId) {
-      query.set("user_id", options.userId);
-    }
-    if (options?.skuIds) {
-      query.set("sku_ids", options.skuIds.join(","));
-    }
-
-    const entitlements = (await this.client.rest.get(
-      `/applications/@me/entitlements?${query.toString()}`,
-    )) as APIEntitlement[] | null;
+    const query = Object.fromEntries(
+      Object.entries(options ?? {})
+        .filter(([key, value]) => key !== "cache" && value !== undefined)
+        .map(([key, value]) => [key, Array.isArray(value) ? value.join(",") : String(value)]),
+    );
+    const entitlements = (await this.client.rest.get(Routes.entitlements("@me"), {
+      query,
+    })) as APIEntitlement[] | null;
 
     if (!entitlements) {
       return cached;
@@ -73,10 +77,72 @@ export default class EntitlementManager {
     });
   }
 
-  public async consume(entitlementId: string): Promise<void> {
-    await this.client.rest.post(`/applications/@me/entitlements/${entitlementId}/consume`);
+  /**
+   * Fetches one entitlement.
+   *
+   * @param entitlementId - The entitlement ID.
+   * @returns The entitlement, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/entitlement#get-entitlement
+   */
+  public async fetchOne(entitlementId: string): Promise<EntitlementStructureInstance | null> {
+    const entitlement = (await this.client.rest.get(
+      Routes.entitlement("@me", entitlementId),
+    )) as RESTGetAPIEntitlementResult | null;
+    if (!entitlement) {
+      return null;
+    }
+    const structure = new EntitlementStructure(entitlement, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
   }
 
+  /**
+   * Creates a test entitlement for the current application.
+   *
+   * @param data - The official Discord test-entitlement body.
+   * @returns The created entitlement data.
+   * @see https://docs.discord.com/developers/resources/entitlement#create-test-entitlement
+   */
+  public async create(data: RESTPostAPIEntitlementJSONBody): Promise<RESTPostAPIEntitlementResult> {
+    const entitlement = (await this.client.rest.post(Routes.entitlements("@me"), {
+      body: data,
+    })) as RESTPostAPIEntitlementResult;
+    if (entitlement.id) {
+      const structure = new EntitlementStructure(entitlement as APIEntitlement, this.client);
+      this._add(structure, { enabled: true, force: true });
+    }
+    return entitlement;
+  }
+
+  /**
+   * Deletes a test entitlement.
+   *
+   * @param entitlementId - The entitlement ID.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/entitlement#delete-test-entitlement
+   */
+  public async delete(entitlementId: string): Promise<RESTDeleteAPIEntitlementResult> {
+    await this.client.rest.delete(Routes.entitlement("@me", entitlementId));
+    this._remove(entitlementId);
+  }
+
+  /**
+   * Consumes an entitlement.
+   *
+   * @param entitlementId - The entitlement ID.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/entitlement#consume-an-entitlement
+   */
+  public async consume(entitlementId: string): Promise<RESTPostAPIEntitlementConsumeResult> {
+    await this.client.rest.post(Routes.consumeEntitlement("@me", entitlementId));
+    return undefined;
+  }
+
+  /**
+   * Gets the entitlement cache.
+   *
+   * @returns The entitlement cache.
+   */
   public get cache(): Cache<string, EntitlementStructureInstance> {
     return this._cache;
   }
