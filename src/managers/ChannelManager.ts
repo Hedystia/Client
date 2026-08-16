@@ -44,6 +44,18 @@ export default class ChannelManager {
   }
 
   /**
+   * Removes every cached channel belonging to a guild.
+   * @param guildId - The guild ID.
+   */
+  public _removeGuild(guildId: string): void {
+    for (const [channelId, channel] of this._cache.entries()) {
+      if ((channel as unknown as { guild_id?: string }).guild_id === guildId) {
+        this._cache.delete(channelId);
+      }
+    }
+  }
+
+  /**
    * Updates a channel in the cache
    * @param {ChannelStructureInstance} data The channel data
    */
