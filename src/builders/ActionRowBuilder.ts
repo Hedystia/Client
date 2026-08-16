@@ -1,11 +1,6 @@
-import type {
-  APIActionRowComponent,
-  APIButtonComponent,
-  APIStringSelectComponent,
-} from "discord-api-types/v10";
-import type ButtonBuilder from "./ButtonBuilder";
+import type { APIActionRowComponent, APIComponentInMessageActionRow } from "discord-api-types/v10";
 
-type MessageComponent = APIButtonComponent | APIStringSelectComponent;
+type MessageComponent = APIComponentInMessageActionRow;
 
 /**
  * Represents an action row builder
@@ -22,7 +17,7 @@ export class ActionRowBuilder {
    * @param components - The components to add
    * @returns The action row builder for chaining
    */
-  public addComponents(...components: Array<ButtonBuilder | { toJSON(): MessageComponent }>): this {
+  public addComponents(...components: Array<{ toJSON(): MessageComponent }>): this {
     if (!this.data.components) {
       this.data.components = [];
     }
@@ -35,7 +30,7 @@ export class ActionRowBuilder {
    * @param components - The components to set
    * @returns The action row builder for chaining
    */
-  public setComponents(...components: Array<ButtonBuilder | { toJSON(): MessageComponent }>): this {
+  public setComponents(...components: Array<{ toJSON(): MessageComponent }>): this {
     this.data.components = components.map((component) => component.toJSON());
     return this;
   }
