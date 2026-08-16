@@ -1,5 +1,6 @@
 import type { APISticker } from "discord-api-types/v10";
 import type Client from "../client";
+import { CDN } from "../utils/constants";
 
 class GuildStickerStructure<T extends APISticker = APISticker> {
   public readonly client: Client;
@@ -25,7 +26,7 @@ class GuildStickerStructure<T extends APISticker = APISticker> {
     const sticker = this as unknown as APISticker & { id: string; format_type: number };
     const size = options?.size ?? 1024;
     const extension = options?.extension ?? (sticker.format_type === 3 ? "json" : "png");
-    return `https://cdn.discordapp.com/stickers/${sticker.id}.${extension}?size=${size}`;
+    return `${CDN.sticker(sticker.id, extension as Parameters<typeof CDN.sticker>[1])}?size=${size}`;
   }
 
   /**
@@ -60,6 +61,32 @@ class GuildStickerStructure<T extends APISticker = APISticker> {
   }
 
   /**
+   * Edits this sticker.
+   *
+   * @param data - The official Discord sticker-edit body.
+   * @param reason - Optional audit-log reason.
+   * @returns The edited sticker, or null when Discord returned no data.
+   */
+  public edit(
+    data: Parameters<Client["stickers"]["edit"]>[2],
+    reason?: string,
+  ): Promise<GuildStickerStructureInstance | null> {
+    const sticker = this as unknown as APISticker & { id: string };
+    return this.client.stickers.edit(this.guildId, sticker.id, data, reason);
+  }
+
+  /**
+   * Deletes this sticker.
+   *
+   * @param reason - Optional audit-log reason.
+   * @returns A promise that resolves when Discord accepts the request.
+   */
+  public delete(reason?: string): Promise<void> {
+    const sticker = this as unknown as APISticker & { id: string };
+    return this.client.stickers.delete(this.guildId, sticker.id, reason);
+  }
+
+  /**
    * Checks if this sticker equals another sticker
    * @param sticker - The sticker to compare with
    * @returns Whether the stickers are equal
@@ -77,5 +104,5 @@ export default GuildStickerStructure as new <T extends APISticker = APISticker>(
   client: Client,
 ) => GuildStickerStructure<T> & T & { readonly guildId: string; readonly client: Client };
 
-export type GuildStickerStructureInstance = InstanceType<typeof GuildStickerStructure> &
+export type GuildStickerStructureInstance = GuildStickerStructure<APISticker> &
   APISticker & { readonly guildId: string; readonly client: Client };
