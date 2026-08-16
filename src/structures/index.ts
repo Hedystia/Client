@@ -2,13 +2,20 @@ export type { ApplicationCommandPermissionsStructureInstance } from "./Applicati
 export { default as ApplicationCommandPermissionsStructure } from "./ApplicationCommandPermissionsStructure";
 export type { AuditLogEntryStructureInstance } from "./AuditLogEntryStructure";
 export { default as AuditLogEntryStructure } from "./AuditLogEntryStructure";
+export type { AuditLogStructureInstance } from "./AuditLogStructure";
+export { default as AuditLogStructure } from "./AuditLogStructure";
 export type { AutoModerationActionStructureInstance } from "./AutoModerationActionStructure";
 export { default as AutoModerationActionStructure } from "./AutoModerationActionStructure";
 export type { AutoModerationRuleStructureInstance } from "./AutoModerationRuleStructure";
 export { default as AutoModerationRuleStructure } from "./AutoModerationRuleStructure";
 export type { ChannelPinsStructureInstance } from "./ChannelPinsStructure";
 export { default as ChannelPinsStructure } from "./ChannelPinsStructure";
-export type { ChannelStructureInstance } from "./ChannelStructure";
+export type {
+  AwaitMessageComponentOptions,
+  AwaitMessagesOptions,
+  ChannelMessagesManager,
+  ChannelStructureInstance,
+} from "./ChannelStructure";
 export { default as ChannelStructure } from "./ChannelStructure";
 export type { EntitlementStructureInstance } from "./EntitlementStructure";
 export { default as EntitlementStructure } from "./EntitlementStructure";
@@ -30,7 +37,7 @@ export type { InteractionStructureInstance } from "./InteractionStructure";
 export { default as InteractionStructure } from "./InteractionStructure";
 export type { InviteStructureInstance } from "./InviteStructure";
 export { default as InviteStructure } from "./InviteStructure";
-export type { MemberStructureInstance } from "./MemberStructure";
+export type { MemberRoleManager, MemberStructureInstance } from "./MemberStructure";
 export { default as MemberStructure } from "./MemberStructure";
 export type { MessagePollVoteStructureInstance } from "./MessagePollVoteStructure";
 export { default as MessagePollVoteStructure } from "./MessagePollVoteStructure";
@@ -38,6 +45,8 @@ export type { MessageReactionStructureInstance } from "./MessageReactionStructur
 export { default as MessageReactionStructure } from "./MessageReactionStructure";
 export type { MessageStructureInstance } from "./MessageStructure";
 export { default as MessageStructure } from "./MessageStructure";
+export type { PermissionOverwriteStructureInstance } from "./PermissionOverwriteStructure";
+export { default as PermissionOverwriteStructure } from "./PermissionOverwriteStructure";
 export type { PresenceStructureInstance } from "./PresenceStructure";
 export { default as PresenceStructure } from "./PresenceStructure";
 export type { RoleStructureInstance } from "./RoleStructure";
