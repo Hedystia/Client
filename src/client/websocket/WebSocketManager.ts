@@ -1,9 +1,12 @@
 import EventEmitter from "node:events";
-import type {
-  GatewayDispatchPayload,
-  GatewayPresenceUpdateData,
-  GatewaySendPayload,
-  GatewayVoiceStateUpdateData,
+import {
+  type GatewayDispatchPayload,
+  GatewayOpcodes,
+  type GatewayPresenceUpdateData,
+  type GatewayRequestChannelInfoData,
+  type GatewayRequestGuildMembersData,
+  type GatewaySendPayload,
+  type GatewayVoiceStateUpdateData,
 } from "discord-api-types/v10";
 import { DEFAULT_GATEWAY_URL } from "./constants";
 import { ConnectQueue } from "./structures/ConnectQueue";
@@ -121,12 +124,43 @@ export class WebSocketManager extends EventEmitter<WebSocketManagerEventsMap> {
     const ids = this.getShardIds();
     this.debug(`Spawning ${ids.length} shard(s)`);
 
+    const readyPromises: Promise<void>[] = [];
     for (const id of ids) {
       const shard = this.createShard(id);
       this.shards.set(id, shard);
-      this.connectQueue.push(() => {
-        shard.connect();
-      });
+      readyPromises.push(
+        new Promise<void>((resolve, reject) => {
+          const handleReady = () => {
+            shard.off(WebSocketShardEvents.Error, handleError);
+            shard.off(WebSocketShardEvents.SocketError, handleSocketError);
+            resolve();
+          };
+          const handleError = (error: Error) => {
+            shard.off(WebSocketShardEvents.Ready, handleReady);
+            shard.off(WebSocketShardEvents.SocketError, handleSocketError);
+            reject(error);
+          };
+          const handleSocketError = (error: Error) => {
+            shard.off(WebSocketShardEvents.Ready, handleReady);
+            shard.off(WebSocketShardEvents.Error, handleError);
+            reject(error);
+          };
+          shard.once(WebSocketShardEvents.Ready, handleReady);
+          shard.once(WebSocketShardEvents.Error, handleError);
+          shard.once(WebSocketShardEvents.SocketError, handleSocketError);
+          this.connectQueue.push(() => {
+            shard.connect().catch(handleError);
+          });
+        }),
+      );
+    }
+
+    try {
+      await Promise.all(readyPromises);
+    } catch (error) {
+      this.connectQueue.clear();
+      await this.destroy();
+      throw error;
     }
   }
 
@@ -134,6 +168,7 @@ export class WebSocketManager extends EventEmitter<WebSocketManagerEventsMap> {
    * Destroys every shard and clears the manager.
    */
   public async destroy(code = ShardSocketCloseCodes.ShutdownAll): Promise<void> {
+    this.connectQueue.clear();
     this.debug(`Destroying all shards with code ${code}`);
     await Promise.all(
       [...this.shards.values()].map((shard) => shard.destroy({ code, reason: "Manager destroy" })),
@@ -171,6 +206,22 @@ export class WebSocketManager extends EventEmitter<WebSocketManagerEventsMap> {
       throw new Error(`Shard ${shardId} does not exist`);
     }
     await shard.updateVoiceState(data);
+  }
+
+  /**
+   * Requests guild members through the shard that owns the guild.
+   */
+  public async requestGuildMembers(data: GatewayRequestGuildMembersData): Promise<void> {
+    const shardId = WebSocketManager.calculateShardId(data.guild_id, this.totalShards);
+    await this.send(shardId, { op: GatewayOpcodes.RequestGuildMembers, d: data });
+  }
+
+  /**
+   * Requests ephemeral voice channel information through the owning shard.
+   */
+  public async requestChannelInfo(data: GatewayRequestChannelInfoData): Promise<void> {
+    const shardId = WebSocketManager.calculateShardId(data.guild_id, this.totalShards);
+    await this.send(shardId, { op: GatewayOpcodes.RequestChannelInfo, d: data });
   }
 
   /**
