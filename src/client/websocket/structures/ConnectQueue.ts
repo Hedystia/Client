@@ -12,56 +12,55 @@ export class ConnectQueue {
   /**
    * Creates a new connect queue.
    *
-   * @param intervalTime - Time window in ms between bursts.
-   * @param concurrency - Maximum number of items dequeued per window.
+   * @param intervalTime - Time window in ms between identify bursts.
+   * @param concurrency - Maximum number of callbacks started per window.
    */
   public constructor(
-    public intervalTime = 5_500,
-    public concurrency = 1,
+    public readonly intervalTime = 5_500,
+    public readonly concurrency = 1,
   ) {
+    if (concurrency < 1) {
+      throw new RangeError("ConnectQueue concurrency must be at least 1");
+    }
+    if (intervalTime < 0) {
+      throw new RangeError("ConnectQueue intervalTime cannot be negative");
+    }
     this.remaining = concurrency;
   }
 
   /**
-   * Enqueues a callback. The callback runs immediately if the burst budget
-   * allows it, otherwise it is scheduled for the next available window.
+   * Enqueues a callback and starts it when the current burst has capacity.
    */
   public push(callback: () => unknown): void {
-    if (this.remaining === 0) {
-      this.queue.push(callback);
-      return;
-    }
-
-    this.remaining--;
-    if (this.interval === null) {
-      this.startInterval();
-    }
-
-    if (this.queue.length < this.concurrency) {
-      callback();
-      return;
-    }
-
     this.queue.push(callback);
+    this.drain();
   }
 
-  private startInterval(): void {
-    this.interval = setInterval(() => {
-      const next = this.queue.shift();
-      if (next) {
-        next();
-        return;
-      }
+  /**
+   * Cancels callbacks that have not started and resets the current burst.
+   */
+  public clear(): void {
+    this.queue.length = 0;
+    this.remaining = this.concurrency;
+    if (this.interval) {
+      clearTimeout(this.interval);
+      this.interval = null;
+    }
+  }
 
-      if (this.remaining < this.concurrency) {
-        this.remaining++;
-      }
+  private drain(): void {
+    while (this.remaining > 0 && this.queue.length > 0) {
+      this.remaining--;
+      this.queue.shift()?.();
+    }
 
-      if (this.queue.length === 0 && this.interval) {
-        clearInterval(this.interval);
+    if (this.remaining < this.concurrency && this.interval === null) {
+      this.interval = setTimeout(() => {
         this.interval = null;
-      }
-    }, this.intervalTime / this.concurrency);
+        this.remaining = this.concurrency;
+        this.drain();
+      }, this.intervalTime);
+    }
   }
 }
 
