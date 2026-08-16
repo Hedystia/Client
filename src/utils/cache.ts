@@ -210,6 +210,41 @@ export class Cache<K, V> {
   }
 
   /**
+   * Applies configuration to an existing cache.
+   *
+   * @param options - The cache options to update.
+   * @returns This cache instance for chaining.
+   */
+  public configure(options: CacheOptions<V>): this {
+    const hadCleanup = this._cleanupInterval !== null;
+    this.stopCleanupInterval();
+    Object.assign(this._options, {
+      ...options,
+      maxSize: options.maxSize ?? this._options.maxSize,
+      dynamicTTL: options.dynamicTTL ?? this._options.dynamicTTL,
+      dynamicTTLMultiplier: options.dynamicTTLMultiplier ?? this._options.dynamicTTLMultiplier,
+      dynamicTTLMaxMultiplier:
+        options.dynamicTTLMaxMultiplier ?? this._options.dynamicTTLMaxMultiplier,
+      cleanupInterval: options.cleanupInterval ?? this._options.cleanupInterval,
+      enabled: options.enabled ?? this._options.enabled,
+      trackAccess: options.trackAccess ?? this._options.trackAccess,
+    });
+    if (this._options.maxSize !== Number.POSITIVE_INFINITY) {
+      while (this.size > this._options.maxSize) {
+        this.evictOldest();
+      }
+    }
+    if (
+      this._options.ttl &&
+      this._options.cleanupInterval > 0 &&
+      (hadCleanup || options.ttl !== undefined || options.cleanupInterval !== undefined)
+    ) {
+      this.startCleanupInterval();
+    }
+    return this;
+  }
+
+  /**
    * Gets the current number of items in the cache
    */
   public get size(): number {
@@ -244,7 +279,11 @@ export class Cache<K, V> {
     }
 
     // Evict if at max capacity
-    if (this._options.maxSize !== Number.POSITIVE_INFINITY && this.size >= this._options.maxSize) {
+    if (
+      this._options.maxSize !== Number.POSITIVE_INFINITY &&
+      this.size >= this._options.maxSize &&
+      !this._map.has(key)
+    ) {
       this.evictOldest();
     }
 
