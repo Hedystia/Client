@@ -18,7 +18,7 @@ export default class UserUpdate {
   async _patch(data: { d: GatewayUserUpdateDispatchData }): Promise<void> {
     const packet = data.d;
 
-    const userStructure = new UserStructure(packet);
+    const userStructure = new UserStructure(packet, this.client);
     this.client.users._add(userStructure, { enabled: true, force: true });
 
     this.client.emit("userUpdate", userStructure);
