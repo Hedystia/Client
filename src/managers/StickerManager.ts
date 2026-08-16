@@ -1,8 +1,16 @@
-import type { APISticker } from "discord-api-types/v10";
+import type {
+  APISticker,
+  RESTGetAPIStickerResult,
+  RESTPatchAPIGuildStickerJSONBody,
+  RESTPatchAPIGuildStickerResult,
+  RESTPostAPIGuildStickerFormDataBody,
+  RESTPostAPIGuildStickerResult,
+} from "discord-api-types/v10";
 import type Client from "../client";
 import type { GuildStickerStructureInstance } from "../structures/GuildStickerStructure";
 import GuildStickerStructure from "../structures/GuildStickerStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class StickerManager {
   client: Client;
@@ -69,6 +77,19 @@ export default class StickerManager {
   }
 
   /**
+   * Fetches a globally available sticker by ID.
+   *
+   * @param stickerId - The sticker ID.
+   * @returns The official sticker payload, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/sticker#get-sticker
+   */
+  public async fetchGlobal(stickerId: string): Promise<RESTGetAPIStickerResult | null> {
+    return (await this.client.rest.get(
+      Routes.sticker(stickerId),
+    )) as RESTGetAPIStickerResult | null;
+  }
+
+  /**
    * Fetches all stickers from a guild
    * @param {string} guildId The guild's id
    * @param {boolean} options.cache.force Whether to force fetch from the API even if cache is enabled
@@ -92,7 +113,7 @@ export default class StickerManager {
       }
     }
 
-    const stickers = (await this.client.rest.get(`/guilds/${guildId}/stickers`)) as
+    const stickers = (await this.client.rest.get(Routes.guildStickers(guildId))) as
       | APISticker[]
       | null;
 
@@ -125,7 +146,7 @@ export default class StickerManager {
     }
 
     const sticker = (await this.client.rest.get(
-      `/guilds/${guildId}/stickers/${stickerId}`,
+      Routes.guildSticker(guildId, stickerId),
     )) as APISticker | null;
 
     if (!sticker) {
@@ -135,6 +156,82 @@ export default class StickerManager {
     const stickerStructure = new GuildStickerStructure(sticker, guildId, this.client);
     this._add(stickerStructure, { enabled: true, force: false });
     return stickerStructure;
+  }
+
+  /**
+   * Creates a custom sticker in a guild.
+   *
+   * @param guildId - The guild ID.
+   * @param data - The official Discord sticker form-data body.
+   * @param reason - Optional audit-log reason.
+   * @returns The created sticker, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/sticker#create-guild-sticker
+   */
+  public async create(
+    guildId: string,
+    data: RESTPostAPIGuildStickerFormDataBody,
+    reason?: string,
+  ): Promise<GuildStickerStructureInstance | null> {
+    const form = new FormData();
+    form.append("name", data.name);
+    form.append("description", data.description);
+    form.append("tags", data.tags);
+    form.append("file", data.file as Blob | string);
+
+    const sticker = (await this.client.rest.post(Routes.guildStickers(guildId), {
+      body: form,
+      reason,
+    })) as RESTPostAPIGuildStickerResult | null;
+    if (!sticker) {
+      return null;
+    }
+
+    const structure = new GuildStickerStructure(sticker, guildId, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
+  }
+
+  /**
+   * Edits a custom sticker in a guild.
+   *
+   * @param guildId - The guild ID.
+   * @param stickerId - The sticker ID.
+   * @param data - The official Discord sticker-edit body.
+   * @param reason - Optional audit-log reason.
+   * @returns The edited sticker, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/sticker#modify-guild-sticker
+   */
+  public async edit(
+    guildId: string,
+    stickerId: string,
+    data: RESTPatchAPIGuildStickerJSONBody,
+    reason?: string,
+  ): Promise<GuildStickerStructureInstance | null> {
+    const sticker = (await this.client.rest.patch(Routes.guildSticker(guildId, stickerId), {
+      body: data,
+      reason,
+    })) as RESTPatchAPIGuildStickerResult | null;
+    if (!sticker) {
+      return null;
+    }
+
+    const structure = new GuildStickerStructure(sticker, guildId, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
+  }
+
+  /**
+   * Deletes a custom sticker from a guild.
+   *
+   * @param guildId - The guild ID.
+   * @param stickerId - The sticker ID.
+   * @param reason - Optional audit-log reason.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/sticker#delete-guild-sticker
+   */
+  public async delete(guildId: string, stickerId: string, reason?: string): Promise<void> {
+    await this.client.rest.delete(Routes.guildSticker(guildId, stickerId), { reason });
+    this._remove(stickerId);
   }
 
   /**
