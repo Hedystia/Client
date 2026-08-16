@@ -16,10 +16,23 @@ export interface MessageCollectorOptions extends CollectorOptions<APIMessage> {
 
 class MessageCollector extends Collector<string, APIMessage, [APIMessage]> {
   private readonly options: MessageCollectorOptions;
+  private readonly messageListener = (message: APIMessage): void => {
+    this.handle(message).catch(() => undefined);
+  };
 
   constructor(client: Client, options: MessageCollectorOptions = {}) {
     super(client, options);
     this.options = options;
+    this.client.on("messageCreate", this.messageListener);
+  }
+
+  /**
+   * Stops this collector and removes its client listener.
+   * @param reason - The reason for stopping.
+   */
+  public override stop(reason = "user"): void {
+    this.client.off("messageCreate", this.messageListener);
+    super.stop(reason);
   }
 
   /**
@@ -56,22 +69,6 @@ class MessageCollector extends Collector<string, APIMessage, [APIMessage]> {
    */
   protected getKey(message: APIMessage): string {
     return message.id;
-  }
-
-  /**
-   * Emits an event
-   * @param event - The event to emit
-   * @param args - Event arguments
-   */
-  protected emit(_event: string, ..._args: unknown[]): void {
-    // Subclasses should implement this
-  }
-
-  /**
-   * Checks if the collector should end
-   */
-  protected checkEnd(): void {
-    // Default implementation does nothing
   }
 
   /**
