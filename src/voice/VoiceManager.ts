@@ -22,6 +22,8 @@ class VoiceManager {
 
   constructor(client: Client) {
     this.client = client;
+    this.client.on("voiceServerUpdate", (data) => this.handleVoiceServerUpdate(data));
+    this.client.on("voiceStateUpdate", (data) => this.handleVoiceStateUpdate(data));
   }
 
   /**
@@ -38,11 +40,15 @@ class VoiceManager {
       this.connections.delete(guildId);
     }
 
+    // Register the listeners before sending the update so fast gateway responses
+    // cannot be missed between the two operations.
+    const voiceStatePromise = this.waitForVoiceState(guildId);
+
     // Send voice state update to gateway
     await this.sendVoiceStateUpdate(guildId, channelId, selfMute, selfDeaf);
 
     // Wait for voice server update and state update
-    const voiceState = await this.waitForVoiceState(guildId);
+    const voiceState = await voiceStatePromise;
 
     // Create voice connection
     const connection = new VoiceConnection({
@@ -51,15 +57,20 @@ class VoiceManager {
       sessionId: voiceState.sessionId,
       token: voiceState.token,
       endpoint: voiceState.endpoint ?? "",
+      channelId,
     });
 
     this.connections.set(guildId, connection);
 
-    // Handle connection events
+    // Handle connection events before opening the socket so failures cannot be missed.
     connection.on("close", () => {
       this.connections.delete(guildId);
     });
+    connection.on("voiceError", (error) => this.client.emit("voiceError", error));
+    connection.on("warn", (message) => this.client.emit("voiceWarn", message));
+    connection.on("audio", (packet) => this.client.emit("voiceAudio", packet));
 
+    await connection.connect();
     return connection;
   }
 
@@ -102,12 +113,11 @@ class VoiceManager {
     selfMute = false,
     selfDeaf = false,
   ): Promise<void> {
-    const shard = this.client.shards.get(0);
-    if (!shard) {
-      throw new Error("No shards available");
+    if (!this.client.websocket) {
+      throw new Error("Client is not connected");
     }
 
-    shard.updateVoiceState({
+    await this.client.websocket.updateVoiceState({
       guild_id: guildId,
       channel_id: channelId,
       self_mute: selfMute,
@@ -154,7 +164,7 @@ class VoiceManager {
       };
 
       const handleVoiceStateUpdate = (data: GatewayVoiceStateUpdateDispatchData) => {
-        if (data.guild_id === guildId && data.session_id) {
+        if (data.guild_id === guildId && data.user_id === this.client.me?.id && data.session_id) {
           sessionId = data.session_id;
           tryResolve();
         }
@@ -178,6 +188,7 @@ class VoiceManager {
         token: data.token,
         endpoint: data.endpoint,
       } as VoiceState);
+      this.connections.get(guildId)?.updateServer(data.token, data.endpoint);
     }
   }
 
@@ -195,7 +206,9 @@ class VoiceManager {
         userId: this.client.me?.id || "",
         endpoint: existing?.endpoint ?? null,
         token: existing?.token ?? "",
+        channelId: data.channel_id,
       } as VoiceState);
+      this.connections.get(guildId)?.updateSession(data.session_id);
     }
   }
 }
