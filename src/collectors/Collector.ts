@@ -37,6 +37,7 @@ abstract class Collector<K, T, F extends unknown[] = unknown[]> {
   private _processingTimeout: NodeJS.Timeout | null;
   private _lastCollectedTime: number;
   private _collectedCount: number;
+  private readonly listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   public ended: boolean;
   public endReason: string | null;
 
@@ -200,12 +201,61 @@ abstract class Collector<K, T, F extends unknown[] = unknown[]> {
   protected abstract getKey(item: T, ...args: F): K;
 
   /**
-   * Emits an event
-   * @param event - The event to emit
-   * @param args - Event arguments
+   * Registers a collector event listener.
+   * @param event - The event to listen for.
+   * @param listener - The event listener.
+   * @returns This collector.
    */
-  protected emit(_event: keyof CollectorEvent<T, K>, ..._args: unknown[]): void {
-    // Subclasses should implement this
+  public on<E extends keyof CollectorEvent<T, K>>(
+    event: E,
+    listener: CollectorEvent<T, K>[E],
+  ): this {
+    const listeners = this.listeners.get(event) ?? new Set<(...args: unknown[]) => void>();
+    listeners.add(listener as (...args: unknown[]) => void);
+    this.listeners.set(event, listeners);
+    return this;
+  }
+
+  /**
+   * Registers a one-time collector event listener.
+   * @param event - The event to listen for.
+   * @param listener - The event listener.
+   * @returns This collector.
+   */
+  public once<E extends keyof CollectorEvent<T, K>>(
+    event: E,
+    listener: CollectorEvent<T, K>[E],
+  ): this {
+    const wrapped = (...args: unknown[]) => {
+      this.off(event, wrapped);
+      (listener as (...listenerArgs: unknown[]) => void)(...args);
+    };
+    return this.on(event, wrapped as CollectorEvent<T, K>[E]);
+  }
+
+  /**
+   * Removes a collector event listener.
+   * @param event - The event to stop listening for.
+   * @param listener - The listener to remove.
+   * @returns This collector.
+   */
+  public off<E extends keyof CollectorEvent<T, K>>(
+    event: E,
+    listener: CollectorEvent<T, K>[E] | ((...args: unknown[]) => void),
+  ): this {
+    this.listeners.get(event)?.delete(listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  /**
+   * Emits an event.
+   * @param event - The event to emit.
+   * @param args - Event arguments.
+   */
+  protected emit(event: keyof CollectorEvent<T, K>, ...args: unknown[]): void {
+    for (const listener of this.listeners.get(event) ?? []) {
+      listener(...args);
+    }
   }
 
   /**
