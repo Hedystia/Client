@@ -1,5 +1,9 @@
-import type { APISoundboardSound } from "discord-api-types/v10";
+import type {
+  APISoundboardSound,
+  RESTPatchAPIGuildSoundboardSoundJSONBody,
+} from "discord-api-types/v10";
 import type Client from "../client";
+import { CDN } from "../utils/constants";
 
 class GuildSoundboardSoundStructure<T extends APISoundboardSound = APISoundboardSound> {
   public readonly client: Client;
@@ -13,6 +17,42 @@ class GuildSoundboardSoundStructure<T extends APISoundboardSound = APISoundboard
     }
     this.guildId = guildId;
     this.client = client;
+  }
+
+  /**
+   * The soundboard sound CDN URL.
+   *
+   * @returns The sound URL for this sound.
+   */
+  public get url(): string {
+    const sound = this as unknown as APISoundboardSound;
+    return CDN.soundboardSound(sound.sound_id);
+  }
+
+  /**
+   * Edits this soundboard sound.
+   *
+   * @param data - The official Discord soundboard edit body.
+   * @param reason - Optional audit-log reason.
+   * @returns The edited sound, or null when Discord returned no data.
+   */
+  public edit(
+    data: RESTPatchAPIGuildSoundboardSoundJSONBody,
+    reason?: string,
+  ): Promise<GuildSoundboardSoundStructureInstance | null> {
+    const sound = this as unknown as APISoundboardSound;
+    return this.client.soundboardSounds.edit(this.guildId, sound.sound_id, data, reason);
+  }
+
+  /**
+   * Deletes this soundboard sound.
+   *
+   * @param reason - Optional audit-log reason.
+   * @returns A promise that resolves when Discord accepts the request.
+   */
+  public delete(reason?: string): Promise<void> {
+    const sound = this as unknown as APISoundboardSound;
+    return this.client.soundboardSounds.delete(this.guildId, sound.sound_id, reason);
   }
 }
 
