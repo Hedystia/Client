@@ -16,6 +16,8 @@ export default class MessageDelete {
 
   async _patch(data: { d: GatewayMessageDeleteDispatchData }): Promise<void> {
     const packet = data.d;
-    this.client.emit("messageDelete", packet);
+    const cachedMessage = this.client.messages.get(packet.id);
+    this.client.messages.delete(packet.id);
+    this.client.emit("messageDelete", cachedMessage ?? packet);
   }
 }
