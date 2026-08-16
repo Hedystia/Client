@@ -108,7 +108,7 @@ export class EventDispatcher {
    *
    * @returns Optional state updates the shard should apply.
    */
-  public dispatch(packet: GatewayDispatchPayload): DispatchResult {
+  public dispatch(packet: GatewayDispatchPayload, shardId?: number): DispatchResult {
     const client = this.client;
 
     switch (packet.t) {
@@ -140,6 +140,9 @@ export class EventDispatcher {
         break;
       case GatewayDispatchEvents.ChannelPinsUpdate:
         new ChannelPinsUpdate(client, packet);
+        break;
+      case GatewayDispatchEvents.ChannelInfo:
+        client.emit("channelInfo", packet.d);
         break;
       case GatewayDispatchEvents.ChannelUpdate:
         new ChannelUpdate(client, packet);
@@ -301,7 +304,7 @@ export class EventDispatcher {
 
       // READY
       case GatewayDispatchEvents.Ready: {
-        new Ready(client, packet);
+        new Ready(client, packet, shardId);
         return {
           sessionId: packet.d.session_id,
           resumeGatewayURL: packet.d.resume_gateway_url,
@@ -313,6 +316,11 @@ export class EventDispatcher {
       case GatewayDispatchEvents.Resumed:
         new Resumed(client);
         return { ready: true };
+
+      // RATE LIMITS
+      case GatewayDispatchEvents.RateLimited:
+        client.emit("rateLimited", packet.d);
+        break;
 
       // STAGE
       case GatewayDispatchEvents.StageInstanceCreate:
@@ -369,6 +377,12 @@ export class EventDispatcher {
       // VOICE
       case GatewayDispatchEvents.VoiceChannelEffectSend:
         new VoiceChannelEffectSend(client, packet);
+        break;
+      case GatewayDispatchEvents.VoiceChannelStartTimeUpdate:
+        client.emit("voiceChannelStartTimeUpdate", packet.d);
+        break;
+      case GatewayDispatchEvents.VoiceChannelStatusUpdate:
+        client.emit("voiceChannelStatusUpdate", packet.d);
         break;
       case GatewayDispatchEvents.VoiceServerUpdate:
         new VoiceServerUpdate(client, packet);
