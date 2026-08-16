@@ -1,8 +1,4 @@
-import {
-  type APIUnavailableGuild,
-  type GatewayGuildCreateDispatchData,
-  GatewayOpcodes,
-} from "discord-api-types/v10";
+import type { APIUnavailableGuild, GatewayGuildCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
 import ChannelStructure from "../structures/ChannelStructure";
 import GuildStructure from "../structures/GuildStructure";
@@ -49,6 +45,14 @@ export default class GuildCreate {
       });
     }
 
+    for (const thread of packet.threads) {
+      const threadStructure = new ChannelStructure(thread, this.client);
+      this.client.channels._add(threadStructure, {
+        enabled: true,
+        force: false,
+      });
+    }
+
     for (const role of packet.roles) {
       const roleStructure = new RoleStructure(role, packet.id, this.client);
       this.client.roles._add(roleStructure, {
@@ -65,24 +69,19 @@ export default class GuildCreate {
       });
     }
 
-    this.requestMembers(packet);
-
+    this.requestMembers(packet.id).catch(() => undefined);
     this.client.emit("guildCreate", guildStructure);
   }
 
-  requestMembers(guild: GuildCreateData) {
-    const guildId = guild.id;
-    for (const [_, shard] of this.client.shards) {
-      if (shard.isOpen) {
-        shard.send({
-          op: GatewayOpcodes.RequestGuildMembers,
-          d: {
-            guild_id: guildId,
-            query: "",
-            limit: 0,
-          },
-        });
-      }
-    }
+  /**
+   * Requests the guild's members through the shard that owns the guild.
+   * @param guildId - The guild ID to request.
+   */
+  private requestMembers(guildId: string): Promise<void> {
+    return this.client.requestGuildMembers({
+      guild_id: guildId,
+      query: "",
+      limit: 0,
+    });
   }
 }
