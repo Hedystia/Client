@@ -1,19 +1,40 @@
-import type { APIChannel, APIMessage } from "discord-api-types/v10";
+import type {
+  APIChannel,
+  APIGuildMember,
+  APIMessage,
+  RESTGetAPIChannelMessageReactionUsersQuery,
+  RESTGetAPIChannelMessageReactionUsersResult,
+  RESTGetAPIPollAnswerVotersQuery,
+  RESTGetAPIPollAnswerVotersResult,
+  RESTPatchAPIChannelMessageJSONBody,
+  RESTPostAPIChannelMessageJSONBody,
+  RESTPostAPIChannelMessagesThreadsJSONBody,
+  RESTPostAPIPollExpireResult,
+  ThreadAutoArchiveDuration,
+} from "discord-api-types/v10";
+import { MessageFlags, MessageReferenceType } from "discord-api-types/v10";
 import type Client from "../client";
 import type { InteractionCollectorOptions } from "../collectors/InteractionCollector";
 import InteractionCollector from "../collectors/InteractionCollector";
 import type { ReactionCollectorOptions } from "../collectors/ReactionCollector";
 import ReactionCollector from "../collectors/ReactionCollector";
-import { Routes } from "../utils/constants";
+import { ChannelType, Routes } from "../utils/constants";
 import type { ChannelStructureInstance } from "./ChannelStructure";
 import ChannelStructure from "./ChannelStructure";
+import type { MemberStructureInstance } from "./MemberStructure";
+import MemberStructure from "./MemberStructure";
+import type { UserStructureInstance } from "./UserStructure";
+import UserStructure from "./UserStructure";
+import type { WebhookStructureInstance } from "./WebhookStructure";
 
 class MessageStructure<T extends APIMessage = APIMessage> {
   public readonly channelId: string;
   public readonly guildId: string | null;
   public readonly client: Client;
+  private readonly payload: T;
 
   constructor(data: T, channelId: string, guildId: string | null, client: Client) {
+    this.payload = data;
     for (const key in data) {
       if (!(key in this)) {
         (this as Record<string, unknown>)[key] = data[key as keyof T];
@@ -22,14 +43,122 @@ class MessageStructure<T extends APIMessage = APIMessage> {
     this.channelId = channelId;
     this.guildId = guildId;
     this.client = client;
+    client.messages.set(data.id, this as unknown as MessageStructureInstance);
   }
 
   /**
-   * The message's mention
+   * The URL of the message on Discord.
+   * @returns The message URL.
    */
-  public get mention(): string {
+  public get url(): string {
     const message = this as unknown as APIMessage;
     return `https://discord.com/channels/${this.guildId ?? "@me"}/${this.channelId}/${message.id}`;
+  }
+
+  /**
+   * The message URL, retained as the library's historical mention alias.
+   * @returns The message URL.
+   */
+  public get mention(): string {
+    return this.url;
+  }
+
+  /**
+   * The user who authored this message.
+   *
+   * The wrapper preserves the official user fields while exposing client-backed
+   * helpers such as `send()` and `avatarURL()`.
+   * @returns The message author as a user structure.
+   */
+  public get author(): UserStructureInstance {
+    const message = this.payload;
+    const cached = this.client.users.cache.get(message.author.id);
+    if (cached) {
+      return cached;
+    }
+    const structure = new UserStructure(message.author, this.client) as UserStructureInstance;
+    this.client.users._add(structure, { enabled: true, force: false });
+    return structure;
+  }
+
+  /**
+   * The author's guild member data, when Discord included it.
+   * @returns The client-backed member structure, or undefined in direct messages.
+   */
+  public get member(): MemberStructureInstance | undefined {
+    const message = this.payload as T & { member?: APIGuildMember };
+    if (!this.guildId || !message.member) {
+      return undefined;
+    }
+    return new MemberStructure(
+      message.member as APIGuildMember,
+      this.guildId,
+      this.client,
+    ) as MemberStructureInstance;
+  }
+
+  /**
+   * The channel containing this message.
+   *
+   * If the channel is not cached, a minimal official Discord partial channel is
+   * created so calls such as `message.channel.send()` remain usable.
+   * @returns The cached or minimally reconstructed channel structure.
+   */
+  public get channel(): ChannelStructureInstance {
+    const channel = this.client.channels.get(this.channelId);
+    if (channel) {
+      return channel;
+    }
+
+    const partialChannel = {
+      id: this.channelId,
+      type: this.guildId === null ? ChannelType.DM : ChannelType.GuildText,
+    } as APIChannel;
+    const structure = new ChannelStructure(
+      partialChannel,
+      this.client,
+    ) as unknown as ChannelStructureInstance;
+    this.client.channels.set(this.channelId, structure);
+    return structure;
+  }
+
+  /**
+   * The thread created from this message, when Discord included it.
+   * @returns The cached or reconstructed thread, or null when no thread exists.
+   */
+  public get thread(): ChannelStructureInstance | null {
+    const thread = this.payload.thread;
+    if (!thread) {
+      return null;
+    }
+    const cached = this.client.channels.get(thread.id);
+    if (cached) {
+      return cached;
+    }
+    const structure = new ChannelStructure(
+      thread,
+      this.client,
+    ) as unknown as ChannelStructureInstance;
+    this.client.channels.set(thread.id, structure);
+    return structure;
+  }
+
+  /**
+   * Whether this message has an associated thread.
+   */
+  public get hasThread(): boolean {
+    return (
+      this.payload.thread !== undefined || Boolean(this.payload.flags && this.payload.flags & 32)
+    );
+  }
+
+  /**
+   * Fetches the thread associated with this message.
+   * @returns The thread, or null when this message has no thread or Discord returned no data.
+   */
+  public async fetchThread(): Promise<ChannelStructureInstance | null> {
+    const thread = this.thread;
+    return thread ? thread.fetch() : null;
   }
 
   /**
@@ -91,7 +220,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
    * Whether the message is editable
    */
   public get isEditable(): boolean {
-    return this.isFromCurrentUser && !this.editedAt;
+    return this.isFromCurrentUser;
   }
 
   /**
@@ -275,30 +404,138 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   }
 
   /**
+   * Removes a reaction from this message.
+   *
+   * @param emoji - The emoji to remove.
+   * @param userId - The user whose reaction should be removed, or omitted for the current user.
+   * @returns A promise that resolves when Discord accepts the request.
+   */
+  public async removeReaction(emoji: string, userId?: string): Promise<void> {
+    const message = this as unknown as APIMessage;
+    const encodedEmoji = encodeURIComponent(emoji);
+    const route = userId
+      ? Routes.channelMessageUserReaction(this.channelId, message.id, encodedEmoji, userId)
+      : Routes.channelMessageOwnReaction(this.channelId, message.id, encodedEmoji);
+    await this.client.rest.delete(route);
+  }
+
+  /**
+   * Removes every reaction from this message.
+   *
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/channel#delete-all-reactions
+   */
+  public async removeAllReactions(): Promise<void> {
+    const message = this as unknown as APIMessage;
+    await this.client.rest.delete(Routes.channelMessageAllReactions(this.channelId, message.id));
+  }
+
+  /**
+   * Removes every reaction for one emoji from this message.
+   *
+   * @param emoji - The emoji whose reactions should be removed.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/channel#delete-all-reactions-for-emoji
+   */
+  public async removeReactionEmoji(emoji: string): Promise<void> {
+    const message = this as unknown as APIMessage;
+    await this.client.rest.delete(
+      Routes.channelMessageReaction(this.channelId, message.id, encodeURIComponent(emoji)),
+    );
+  }
+
+  /**
+   * Fetches the users who reacted with an emoji.
+   *
+   * @param emoji - The emoji to inspect.
+   * @param options - The official Discord reaction-user query fields.
+   * @returns The users returned by Discord.
+   * @see https://docs.discord.com/developers/resources/channel#get-reactions
+   */
+  public async fetchReactionUsers(
+    emoji: string,
+    options?: RESTGetAPIChannelMessageReactionUsersQuery,
+  ): Promise<RESTGetAPIChannelMessageReactionUsersResult> {
+    const message = this as unknown as APIMessage;
+    const query = options
+      ? Object.fromEntries(Object.entries(options).map(([key, value]) => [key, String(value)]))
+      : undefined;
+    return (await this.client.rest.get(
+      Routes.channelMessageReaction(this.channelId, message.id, encodeURIComponent(emoji)),
+      { query },
+    )) as RESTGetAPIChannelMessageReactionUsersResult;
+  }
+
+  /**
+   * Fetches the users who voted for one poll answer.
+   *
+   * @param answerId - The poll answer ID.
+   * @param options - The official poll-voter query fields.
+   * @returns The users returned by Discord.
+   * @see https://docs.discord.com/developers/resources/poll#get-answer-voters
+   */
+  public async fetchPollAnswerVoters(
+    answerId: number,
+    options?: RESTGetAPIPollAnswerVotersQuery,
+  ): Promise<RESTGetAPIPollAnswerVotersResult> {
+    const message = this as unknown as APIMessage;
+    const query = options
+      ? Object.fromEntries(
+          Object.entries(options)
+            .filter(([, value]) => value !== undefined)
+            .map(([key, value]) => [key, String(value)]),
+        )
+      : undefined;
+    return (await this.client.rest.get(
+      Routes.pollAnswerVoters(this.channelId, message.id, answerId),
+      { query },
+    )) as RESTGetAPIPollAnswerVotersResult;
+  }
+
+  /**
+   * Expires this message's poll immediately.
+   *
+   * @returns The updated message, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/poll#expire-poll
+   */
+  public async expirePoll(): Promise<MessageStructureInstance | null> {
+    const message = this as unknown as APIMessage;
+    const expiredMessage = (await this.client.rest.post(
+      Routes.expirePoll(this.channelId, message.id),
+    )) as RESTPostAPIPollExpireResult | null;
+    if (!expiredMessage) {
+      return null;
+    }
+    return new MessageStructure(
+      expiredMessage,
+      this.channelId,
+      this.guildId,
+      this.client,
+    ) as unknown as MessageStructureInstance;
+  }
+
+  /**
    * Replies to the message
    * @param content - The content to send
    * @returns A promise that resolves to the sent message
    */
   public async reply(
-    content:
-      | string
-      | {
-          content?: string;
-          embeds?: Array<{ title?: string; description?: string; color?: number }>;
-        },
+    content: string | RESTPostAPIChannelMessageJSONBody | FormData,
   ): Promise<MessageStructureInstance | null> {
     const message = this as unknown as APIMessage;
     const body = typeof content === "string" ? { content } : content;
+    const messageReference = {
+      message_id: message.id,
+      channel_id: this.channelId,
+      guild_id: this.guildId ?? undefined,
+    };
+    const replyBody =
+      body instanceof FormData
+        ? withMultipartMessageReference(body, messageReference)
+        : { ...body, message_reference: messageReference };
 
     const replyMessage = (await this.client.rest.post(Routes.channelMessages(this.channelId), {
-      body: {
-        ...body,
-        message_reference: {
-          message_id: message.id,
-          channel_id: this.channelId,
-          guild_id: this.guildId ?? undefined,
-        },
-      },
+      body: replyBody,
     })) as APIMessage | null;
 
     if (!replyMessage) {
@@ -319,12 +556,7 @@ class MessageStructure<T extends APIMessage = APIMessage> {
    * @returns A promise that resolves to the edited message
    */
   public async edit(
-    content:
-      | string
-      | {
-          content?: string;
-          embeds?: Array<{ title?: string; description?: string; color?: number }>;
-        },
+    content: string | RESTPatchAPIChannelMessageJSONBody | FormData,
   ): Promise<MessageStructureInstance | null> {
     const message = this as unknown as APIMessage;
     const body = typeof content === "string" ? { content } : content;
@@ -353,6 +585,21 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   public async delete(): Promise<void> {
     const message = this as unknown as APIMessage;
     await this.client.rest.delete(Routes.channelMessage(this.channelId, message.id));
+  }
+
+  /**
+   * Suppresses or restores embeds on this message.
+   * @param suppress - Whether embeds should be suppressed.
+   * @returns The edited message, or null when Discord returned no data.
+   */
+  public suppressEmbeds(suppress = true): Promise<MessageStructureInstance | null> {
+    const message = this as unknown as APIMessage;
+    const flags = message.flags ?? 0;
+    return this.edit({
+      flags: (suppress
+        ? flags | MessageFlags.SuppressEmbeds
+        : flags & ~MessageFlags.SuppressEmbeds) as RESTPatchAPIChannelMessageJSONBody["flags"],
+    });
   }
 
   /**
@@ -418,6 +665,58 @@ class MessageStructure<T extends APIMessage = APIMessage> {
   }
 
   /**
+   * Fetches the webhook that created this message.
+   *
+   * @returns The webhook, or null when this message was not created by a webhook.
+   * @see https://docs.discord.com/developers/resources/webhook#get-webhook
+   */
+  public fetchWebhook(): Promise<WebhookStructureInstance | null> {
+    const message = this as unknown as APIMessage;
+    return message.webhook_id
+      ? this.client.webhooks.fetch(message.webhook_id)
+      : Promise.resolve(null);
+  }
+
+  /**
+   * Forwards this message to another channel.
+   *
+   * @param channel - The target channel ID or a channel structure.
+   * @returns The forwarded message, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/message#forward-messages
+   */
+  public async forward(
+    channel: string | ChannelStructureInstance,
+  ): Promise<MessageStructureInstance | null> {
+    const message = this as unknown as APIMessage;
+    const targetChannelId = typeof channel === "string" ? channel : channel.id;
+    const targetGuildId =
+      typeof channel === "string"
+        ? null
+        : ((channel as unknown as APIChannel & { guild_id?: string }).guild_id ?? null);
+    const body: RESTPostAPIChannelMessageJSONBody = {
+      message_reference: {
+        type: MessageReferenceType.Forward,
+        message_id: message.id,
+        channel_id: this.channelId,
+      },
+    };
+    const forwardedMessage = (await this.client.rest.post(Routes.channelMessages(targetChannelId), {
+      body,
+    })) as APIMessage | null;
+
+    if (!forwardedMessage) {
+      return null;
+    }
+
+    return new MessageStructure(
+      forwardedMessage,
+      targetChannelId,
+      targetGuildId,
+      this.client,
+    ) as unknown as MessageStructureInstance;
+  }
+
+  /**
    * Starts a thread from this message
    * @param name - The name of the thread
    * @param autoArchiveDuration - The auto archive duration in minutes
@@ -425,14 +724,14 @@ class MessageStructure<T extends APIMessage = APIMessage> {
    */
   public async startThread(
     name: string,
-    autoArchiveDuration?: 60 | 1440 | 4320 | 10080,
+    autoArchiveDuration?: ThreadAutoArchiveDuration,
   ): Promise<ChannelStructureInstance | null> {
     const message = this as unknown as APIMessage;
     const thread = (await this.client.rest.post(Routes.threads(this.channelId, message.id), {
       body: {
         name,
-        auto_archive_duration: autoArchiveDuration ?? 1440,
-      },
+        auto_archive_duration: autoArchiveDuration,
+      } satisfies RESTPostAPIChannelMessagesThreadsJSONBody,
     })) as APIChannel | null;
 
     if (!thread) {
@@ -441,6 +740,25 @@ class MessageStructure<T extends APIMessage = APIMessage> {
 
     return new ChannelStructure(thread, this.client) as unknown as ChannelStructureInstance;
   }
+}
+
+function withMultipartMessageReference(
+  form: FormData,
+  messageReference: {
+    message_id: string;
+    channel_id: string;
+    guild_id?: string;
+  },
+): FormData {
+  const result = new FormData();
+  for (const [key, value] of form.entries()) {
+    result.append(key, value);
+  }
+
+  const payload = form.get("payload_json");
+  const data = typeof payload === "string" ? JSON.parse(payload) : {};
+  result.set("payload_json", JSON.stringify({ ...data, message_reference: messageReference }));
+  return result;
 }
 
 export default MessageStructure as new <T extends APIMessage = APIMessage>(
