@@ -1,10 +1,19 @@
 import type { GatewayInteractionCreateDispatchData } from "discord-api-types/v10";
 import type Client from "../client";
+import InteractionStructure from "../structures/InteractionStructure";
 
+/**
+ * Normalizes an `INTERACTION_CREATE` gateway payload and emits its public
+ * interaction structure.
+ */
 export default class InteractionCreate {
-  client: Client;
+  public readonly client: Client;
 
-  constructor(
+  /**
+   * @param client - The client that received the interaction.
+   * @param data - The gateway dispatch payload.
+   */
+  public constructor(
     client: Client,
     data: {
       d: GatewayInteractionCreateDispatchData;
@@ -14,8 +23,12 @@ export default class InteractionCreate {
     this._patch(data);
   }
 
-  async _patch(data: { d: GatewayInteractionCreateDispatchData }): Promise<void> {
-    const packet = data.d;
-    this.client.emit("interactionCreate", packet);
+  /**
+   * Wraps and emits an official Discord interaction payload.
+   * @param data - The gateway dispatch payload.
+   */
+  public async _patch(data: { d: GatewayInteractionCreateDispatchData }): Promise<void> {
+    const interaction = new InteractionStructure(data.d, this.client);
+    this.client.emit("interactionCreate", interaction);
   }
 }
