@@ -1,18 +1,21 @@
-import type { ActivityType, PresenceUpdateReceiveStatus } from "discord-api-types/v10";
+import type {
+  GatewayActivityUpdateData,
+  GatewayPresenceUpdateData,
+  PresenceUpdateReceiveStatus,
+} from "discord-api-types/v10";
 import type { default as GatewayIntents } from "../utils/intents";
 
-interface GatewayActivity {
-  name: string;
-  type: ActivityType;
-  url?: string;
-  state?: string;
-}
+/**
+ * The presence fields that can be changed by a client convenience method.
+ * The field definitions come directly from discord-api-types/v10.
+ */
+export type Presence = Omit<Pick<GatewayPresenceUpdateData, "activities" | "status">, "status"> & {
+  status: PresenceUpdateReceiveStatus;
+};
 
-export interface Presence {
-  activities?: GatewayActivity[];
-  status?: PresenceUpdateReceiveStatus;
-}
-
+/**
+ * The official gateway identify payload used by this client.
+ */
 export interface Identify {
   token: string;
   properties: {
@@ -23,6 +26,8 @@ export interface Identify {
   compress?: boolean;
   largeThreshold?: number;
   shard?: [number, number];
-  presence?: Partial<Pick<Presence, "activities" | "status">>;
+  presence?: Partial<Presence>;
   intents: GatewayIntents;
 }
+
+export type { GatewayActivityUpdateData, PresenceUpdateReceiveStatus };
