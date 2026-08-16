@@ -1,19 +1,39 @@
+import { type RESTError, type RESTRateLimit, RouteBases } from "discord-api-types/v10";
+import DiscordAPIError from "../errors/RESTError";
+
 interface RESTClient {
   restRequestTimeout: number;
   token?: string;
   version: number;
 }
 
-interface RequestOptions {
+type QueryValue = string | number | boolean | null | undefined | Array<string | number | boolean>;
+
+/**
+ * Options accepted by a REST request.
+ */
+export interface RequestOptions {
+  /** HTTP method override. */
   method?: string;
-  query?: Record<string, string | string[]>;
+  /** Query-string values. Arrays are encoded as repeated keys. */
+  query?: Record<string, QueryValue>;
+  /** Optional audit-log reason. */
   reason?: string;
+  /** Additional request headers. */
   headers?: Record<string, string>;
+  /** JSON, text, binary, or native multipart request body. */
   body?: unknown;
+  /** Whether non-success responses should reject the request. */
   throwError?: boolean;
+  /** Response decoding mode. */
+  responseType?: "json" | "text" | "arrayBuffer";
+  /** Abort signal used to cancel the request. */
+  signal?: AbortSignal;
+  /** Maximum number of retries for HTTP 429 responses. */
+  maxRetries?: number;
 }
 
-interface RateLimitBucket {
+export interface RateLimitBucket {
   limit: number;
   remaining: number;
   reset: number;
@@ -21,31 +41,37 @@ interface RateLimitBucket {
   global?: boolean;
 }
 
-interface RateLimitError {
-  message: string;
-  retry_after: number;
-  global: boolean;
-  code?: number;
-}
+type RateLimitError = RESTRateLimit;
 
+/**
+ * A small REST client for Discord's official API.
+ */
 class REST {
   private token?: string;
-  private buckets: Map<string, RateLimitBucket> = new Map();
+  private readonly buckets: Map<string, RateLimitBucket> = new Map();
   private globalReset: number | null = null;
 
-  constructor(private client: RESTClient) {}
+  /**
+   * @param client - The client configuration used for authentication and timeouts.
+   */
+  public constructor(private readonly client: RESTClient) {}
 
-  setToken(token: string) {
-    this.token = token;
+  /**
+   * Sets the token used by requests created through this REST instance.
+   * @param token - A Discord bot token, with or without the `Bot ` prefix.
+   * @returns This REST instance.
+   */
+  public setToken(token: string): this {
+    this.token = token.startsWith("Bot ") ? token : `Bot ${token}`;
     return this;
   }
 
   /**
-   * Get the bucket key for a route
-   * @link https://discord.com/developers/topics/rate-limits
+   * Gets the normalized bucket key for a route.
+   * @param method - HTTP method.
+   * @param path - API-relative path.
    */
   private getBucketKey(method: string, path: string): string {
-    // Normalize the path by replacing IDs with placeholders
     const normalizedPath = path
       .replace(/\/\d{17,19}/g, "/:id")
       .replace(/\/reactions\/[^/]+/, "/reactions/:id")
@@ -55,71 +81,72 @@ class REST {
   }
 
   /**
-   * Wait for rate limit to reset
+   * Waits for a rate-limit delay.
+   * @param resetAfter - Delay in seconds.
    */
   private async waitForRateLimit(resetAfter: number): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(resolve, resetAfter * 1000 + 100); // Add 100ms buffer
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, Math.max(0, resetAfter) * 1000 + 100);
     });
   }
 
   /**
-   * Check if we're globally rate limited
+   * Returns whether the global rate limit is active.
    */
   private isGloballyRateLimited(): boolean {
     return this.globalReset !== null && Date.now() < this.globalReset;
   }
 
   /**
-   * Execute a single request with rate limit handling
+   * Executes one request, applying Discord's global and route rate limits.
    */
   private async executeRequest(
     url: string,
     options: RequestOptions,
     bucketKey: string,
+    retryCount = 0,
   ): Promise<unknown> {
-    // Check global rate limit
     if (this.isGloballyRateLimited() && this.globalReset) {
-      const waitTime = (this.globalReset - Date.now()) / 1000;
-      if (waitTime > 0) {
-        await this.waitForRateLimit(waitTime);
-      }
+      await this.waitForRateLimit((this.globalReset - Date.now()) / 1000);
     }
 
-    // Check bucket rate limit
     const bucket = this.buckets.get(bucketKey);
-    if (bucket && bucket.remaining <= 0) {
-      const waitTime = bucket.resetAfter;
-      if (waitTime > 0) {
-        await this.waitForRateLimit(waitTime);
-        // Refresh bucket info after waiting
-        const freshBucket = this.buckets.get(bucketKey);
-        if (freshBucket && freshBucket.remaining <= 0) {
-          // Still rate limited, wait again
-          return this.executeRequest(url, options, bucketKey);
-        }
-      }
+    if (bucket && bucket.remaining <= 0 && Date.now() < bucket.reset) {
+      await this.waitForRateLimit(bucket.resetAfter);
     }
 
     const controller = new AbortController();
+    const abortFromCaller = () => controller.abort();
+    if (options.signal) {
+      if (options.signal.aborted) {
+        controller.abort();
+      } else {
+        options.signal.addEventListener("abort", abortFromCaller, { once: true });
+      }
+    }
     const timeout = setTimeout(() => controller.abort(), this.client.restRequestTimeout);
 
     const headers: Record<string, string> = {
-      "User-Agent": "DiscordBot (https://github.com/Hedystia/Client, 0.0.1)",
-      Authorization: options.headers?.Authorization || `${this.token ?? this.client.token}`,
+      "User-Agent": "DiscordBot (https://github.com/Hedystia/Client, 2.1.0)",
+      Authorization: options.headers?.Authorization || this.token || this.client.token || "",
     };
 
     if (options.reason) {
       headers["X-Audit-Log-Reason"] = options.reason;
     }
 
-    let body: FormData | Buffer | string | undefined;
-
-    if (options.body) {
-      if (options.body instanceof FormData) {
+    let body: string | FormData | Blob | ArrayBuffer | Uint8Array | undefined;
+    if (options.body !== undefined && options.body !== null) {
+      if (typeof FormData !== "undefined" && options.body instanceof FormData) {
         body = options.body;
-      } else if (options.body instanceof Buffer) {
+      } else if (typeof Blob !== "undefined" && options.body instanceof Blob) {
         body = options.body;
+      } else if (options.body instanceof URLSearchParams) {
+        body = options.body.toString();
+        headers["Content-Type"] =
+          options.headers?.["Content-Type"] || "application/x-www-form-urlencoded";
+      } else if (options.body instanceof ArrayBuffer || ArrayBuffer.isView(options.body)) {
+        body = options.body as ArrayBuffer | Uint8Array;
         headers["Content-Type"] = options.headers?.["Content-Type"] || "application/octet-stream";
       } else if (typeof options.body === "string") {
         body = options.body;
@@ -132,7 +159,10 @@ class REST {
 
     if (options.headers) {
       for (const [key, value] of Object.entries(options.headers)) {
-        if (key !== "Content-Type" || !options.body || !(options.body instanceof FormData)) {
+        if (
+          key !== "Content-Type" ||
+          (typeof FormData !== "undefined" && !(options.body instanceof FormData))
+        ) {
           headers[key] = value;
         }
       }
@@ -141,16 +171,22 @@ class REST {
     let requestUrl = url;
     if (options.query) {
       const queryParams = new URLSearchParams();
-      for (const [key, val] of Object.entries(options.query)) {
-        if (val) {
-          if (Array.isArray(val)) {
-            queryParams.set(key, val.join(","));
-          } else {
-            queryParams.append(key, val);
+      for (const [key, value] of Object.entries(options.query)) {
+        if (value === undefined || value === null) {
+          continue;
+        }
+        if (Array.isArray(value)) {
+          for (const item of value) {
+            queryParams.append(key, String(item));
           }
+        } else {
+          queryParams.append(key, String(value));
         }
       }
-      requestUrl += `?${queryParams.toString()}`;
+      const queryString = queryParams.toString();
+      if (queryString) {
+        requestUrl += `${requestUrl.includes("?") ? "&" : "?"}${queryString}`;
+      }
     }
 
     try {
@@ -161,42 +197,56 @@ class REST {
         signal: controller.signal,
       });
 
-      // Update rate limit info from headers
       this.updateRateLimitInfo(response, bucketKey);
 
       if (!response.ok) {
-        const errorData = (await response.json().catch(() => ({}))) as RateLimitError;
+        const errorData = (await response.json().catch(() => ({
+          code: 0,
+          message: response.statusText || "Discord REST request failed",
+        }))) as RESTError & Partial<RateLimitError>;
 
-        // Handle 429 Too Many Requests
         if (response.status === 429) {
-          const retryAfter = errorData.retry_after || 1;
-
+          const retryAfter = Number(errorData.retry_after ?? 1);
           if (errorData.global) {
             this.globalReset = Date.now() + retryAfter * 1000;
           }
-
-          // Wait and retry
-          await this.waitForRateLimit(retryAfter);
-          return this.executeRequest(url, options, bucketKey);
+          if (retryCount < (options.maxRetries ?? 3)) {
+            await this.waitForRateLimit(retryAfter);
+            return this.executeRequest(url, options, bucketKey, retryCount + 1);
+          }
         }
 
         if (options.throwError !== false) {
-          throw new Error(
-            `Request failed with status ${response.status}: ${errorData.message || response.statusText}`,
+          throw new DiscordAPIError(
+            errorData,
+            response.status,
+            options.method ?? "GET",
+            requestUrl,
           );
         }
         return errorData;
       }
 
-      return response.status !== 204 ? await response.json().catch(() => null) : null;
+      if (response.status === 204) {
+        return null;
+      }
+      if (options.responseType === "arrayBuffer") {
+        return response.arrayBuffer();
+      }
+      if (options.responseType === "text") {
+        return response.text();
+      }
+      return await response.json().catch(() => null);
     } finally {
       clearTimeout(timeout);
+      options.signal?.removeEventListener("abort", abortFromCaller);
     }
   }
 
   /**
-   * Update rate limit information from response headers
-   * @link https://discord.com/developers/topics/rate-limits#header-format
+   * Updates route and global rate-limit information from response headers.
+   * @param response - The Discord response.
+   * @param bucketKey - The normalized route bucket key.
    */
   private updateRateLimitInfo(response: Response, bucketKey: string): void {
     const limit = response.headers.get("X-RateLimit-Limit");
@@ -214,10 +264,10 @@ class REST {
         resetAfter: resetAfter ? Number.parseFloat(resetAfter) : 1,
         global: isGlobal === "true",
       };
-
-      // Use the bucket header if available for more accurate tracking
-      const actualBucketKey = bucket || bucketKey;
-      this.buckets.set(actualBucketKey, bucketInfo);
+      this.buckets.set(bucketKey, bucketInfo);
+      if (bucket) {
+        this.buckets.set(bucket, bucketInfo);
+      }
     }
 
     if (isGlobal === "true") {
@@ -229,74 +279,94 @@ class REST {
   private async _make<T>(defaultUrl: string, options: RequestOptions = {}): Promise<T | null> {
     const method = options.method || "GET";
     const bucketKey = this.getBucketKey(method, defaultUrl);
-
     return this.executeRequest(defaultUrl, options, bucketKey) as Promise<T | null>;
   }
 
-  get<T>(url: string, options: RequestOptions = {}) {
+  /**
+   * Sends a GET request.
+   * @param url - API-relative route.
+   * @param options - Request options.
+   */
+  public get<T>(url: string, options: RequestOptions = {}): Promise<T | null> {
     return this._make<T>(url, { method: "GET", ...options });
   }
 
-  post<T>(url: string, options: RequestOptions = {}) {
+  /**
+   * Sends a POST request.
+   * @param url - API-relative route.
+   * @param options - Request options.
+   */
+  public post<T>(url: string, options: RequestOptions = {}): Promise<T | null> {
     return this._make<T>(url, { method: "POST", ...options });
   }
 
-  delete<T>(url: string, options: RequestOptions = {}) {
+  /**
+   * Sends a DELETE request.
+   * @param url - API-relative route.
+   * @param options - Request options.
+   */
+  public delete<T>(url: string, options: RequestOptions = {}): Promise<T | null> {
     return this._make<T>(url, { method: "DELETE", ...options });
   }
 
-  put<T>(url: string, options: RequestOptions = {}) {
+  /**
+   * Sends a PUT request.
+   * @param url - API-relative route.
+   * @param options - Request options.
+   */
+  public put<T>(url: string, options: RequestOptions = {}): Promise<T | null> {
     return this._make<T>(url, { method: "PUT", ...options });
   }
 
-  patch<T>(url: string, options: RequestOptions = {}) {
+  /**
+   * Sends a PATCH request.
+   * @param url - API-relative route.
+   * @param options - Request options.
+   */
+  public patch<T>(url: string, options: RequestOptions = {}): Promise<T | null> {
     return this._make<T>(url, { method: "PATCH", ...options });
   }
 
-  get root() {
-    return `https://discord.com/api/v${this.client.version}`;
+  /**
+   * The official Discord API root for this client version.
+   */
+  public get root(): string {
+    return RouteBases.api.replace(/v10$/, `v${this.client.version}`);
   }
 
   /**
-   * Get current rate limit info for a bucket
+   * Gets the current rate-limit information for a route.
+   * @param method - HTTP method.
+   * @param path - API-relative route.
    */
-  getRateLimitInfo(method: string, path: string): RateLimitBucket | undefined {
-    const bucketKey = this.getBucketKey(method, path);
-    return this.buckets.get(bucketKey);
+  public getRateLimitInfo(method: string, path: string): RateLimitBucket | undefined {
+    return this.buckets.get(this.getBucketKey(method, path));
   }
 
   /**
-   * Check if currently rate limited for a route
+   * Checks whether a route is currently rate limited.
+   * @param method - HTTP method.
+   * @param path - API-relative route.
    */
-  isRateLimited(method: string, path: string): boolean {
-    const bucketKey = this.getBucketKey(method, path);
-    const bucket = this.buckets.get(bucketKey);
-
-    if (!bucket) {
-      return false;
-    }
-
-    return bucket.remaining <= 0 || Date.now() < bucket.reset;
+  public isRateLimited(method: string, path: string): boolean {
+    const bucket = this.buckets.get(this.getBucketKey(method, path));
+    return bucket ? bucket.remaining <= 0 && Date.now() < bucket.reset : false;
   }
 
   /**
-   * Get time until rate limit resets (in milliseconds)
+   * Gets the time until a route's limit resets.
+   * @param method - HTTP method.
+   * @param path - API-relative route.
    */
-  getTimeUntilReset(method: string, path: string): number {
-    const bucketKey = this.getBucketKey(method, path);
-    const bucket = this.buckets.get(bucketKey);
-
-    if (!bucket) {
-      return 0;
-    }
-
-    return Math.max(0, bucket.reset - Date.now());
+  public getTimeUntilReset(method: string, path: string): number {
+    const bucket = this.buckets.get(this.getBucketKey(method, path));
+    return bucket ? Math.max(0, bucket.reset - Date.now()) : 0;
   }
 
   /**
-   * Clear all rate limit info (useful for testing)
+   * Clears all local rate-limit information.
    */
-  clearRateLimitInfo(): void {
+  public clearRateLimitInfo(): void {
     this.buckets.clear();
     this.globalReset = null;
   }
