@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { createReadStream, type ReadStream } from "node:fs";
 import { Readable } from "node:stream";
+import OpusScript from "opusscript";
 import type VoiceConnection from "./VoiceConnection";
 
 export interface AudioOptions {
@@ -24,12 +25,19 @@ class AudioPlayer {
   private loop = false;
   private currentResource: AudioResource | null = null;
   private stream: Readable | null = null;
-  private sequence = 0;
-  private timestamp = 0;
   private playInterval: NodeJS.Timeout | null = null;
+  private ffmpegEnded = false;
   private readonly FRAME_LENGTH = 20; // 20ms frames
   private readonly SAMPLE_RATE = 48000; // 48kHz
   private readonly CHANNELS = 2; // Stereo
+  private readonly FRAME_SIZE = (this.SAMPLE_RATE * this.FRAME_LENGTH) / 1000;
+  private readonly PCM_FRAME_BYTES = this.FRAME_SIZE * this.CHANNELS * 2;
+  private readonly encoder = new OpusScript(
+    this.SAMPLE_RATE,
+    this.CHANNELS,
+    OpusScript.Application.AUDIO,
+  );
+  private pcmBuffer = Buffer.alloc(0);
 
   /**
    * Set the voice connection
@@ -61,11 +69,14 @@ class AudioPlayer {
     this.loop = options.loop ?? false;
 
     // Create ffmpeg stream
-    this.createFFmpegStream(resource);
+    this.connection.setSpeaking(true);
+    this.createFFmpegStream(resource, options.seek);
   }
 
-  private createFFmpegStream(resource: AudioResource): void {
+  private createFFmpegStream(resource: AudioResource, seek = 0): void {
+    this.ffmpegEnded = false;
     const ffmpegArgs = [
+      ...(seek > 0 ? ["-ss", String(seek)] : []),
       "-i",
       typeof resource === "string" ? resource : "pipe:0",
       "-f",
@@ -91,6 +102,7 @@ class AudioPlayer {
 
     this.ffmpeg.on("close", (code) => {
       this.ffmpeg = null;
+      this.ffmpegEnded = true;
 
       if (this.loop && code === 0 && this.currentResource) {
         // Loop the audio
@@ -120,11 +132,7 @@ class AudioPlayer {
       return;
     }
 
-    // Apply volume
-    const volumeAdjustedData = this.volume !== 1 ? this.applyVolume(data, this.volume) : data;
-
-    // Send audio packet
-    this.sendAudioPacket(volumeAdjustedData);
+    this.pcmBuffer = Buffer.concat([this.pcmBuffer, data]);
   }
 
   private applyVolume(data: Buffer, volume: number): Buffer {
@@ -152,48 +160,8 @@ class AudioPlayer {
     if (!this.connection) {
       return;
     }
-
-    const readyData = this.connection.getReadyData();
-    const sessionDesc = this.connection.getSessionDescription();
-
-    if (!readyData || !sessionDesc) {
-      return;
-    }
-
-    // Create RTP packet
-    const packet = this.createRTPPacket(data, readyData.ssrc);
-
-    // Send via UDP (this is simplified - actual implementation needs UDP socket)
-    // For now, we'll just simulate sending
-    this.sendUDPPacket(packet);
-
-    // Update sequence and timestamp
-    this.sequence = (this.sequence + 1) & 0xffff;
-    this.timestamp = (this.timestamp + (this.SAMPLE_RATE * this.FRAME_LENGTH) / 1000) & 0xffffffff;
-  }
-
-  private createRTPPacket(audioData: Buffer, ssrc: number): Buffer {
-    const headerLength = 12;
-    const packet = Buffer.alloc(headerLength + audioData.length);
-
-    // RTP Header
-    packet.writeUInt8(0x80, 0); // Version 2, padding 0, extension 0, CSRC 0
-    packet.writeUInt8(0x78, 1); // Payload type 120 (Opus)
-    packet.writeUInt16BE(this.sequence, 2); // Sequence number
-    packet.writeUInt32BE(this.timestamp, 4); // Timestamp
-    packet.writeUInt32BE(ssrc, 8); // SSRC
-
-    // Copy audio data
-    audioData.copy(packet, headerLength);
-
-    return packet;
-  }
-
-  private sendUDPPacket(_packet: Buffer): void {
-    // This would send the packet via UDP to the voice server
-    // Actual implementation requires creating a UDP socket
-    // and encrypting the packet with the secret key
-    // For now, this is a placeholder
+    const opusPacket = this.encoder.encode(data, this.FRAME_SIZE);
+    this.connection.sendAudioPacket(opusPacket);
   }
 
   private startPlaying(): void {
@@ -202,8 +170,21 @@ class AudioPlayer {
     }
 
     this.playInterval = setInterval(() => {
-      if (!this.paused && this.playable) {
-        // Continue playing
+      if (!this.playable || this.paused) {
+        return;
+      }
+
+      if (this.pcmBuffer.length >= this.PCM_FRAME_BYTES) {
+        const frame = this.pcmBuffer.subarray(0, this.PCM_FRAME_BYTES);
+        this.pcmBuffer = this.pcmBuffer.subarray(this.PCM_FRAME_BYTES);
+        const volumeAdjustedFrame =
+          this.volume !== 1 ? this.applyVolume(frame, this.volume) : frame;
+        this.sendAudioPacket(volumeAdjustedFrame);
+        return;
+      }
+
+      if (this.ffmpegEnded) {
+        this.onEnd();
       }
     }, this.FRAME_LENGTH);
   }
@@ -227,6 +208,8 @@ class AudioPlayer {
    */
   public stop(): void {
     this.playable = false;
+    this.ffmpegEnded = false;
+    this.pcmBuffer = Buffer.alloc(0);
 
     if (this.playInterval) {
       clearInterval(this.playInterval);
@@ -249,7 +232,7 @@ class AudioPlayer {
 
   private sendSilenceFrames(): void {
     // Send 5 frames of silence to avoid Opus interpolation
-    const silence = Buffer.alloc(384); // 20ms of silence at 48kHz stereo 16-bit
+    const silence = Buffer.alloc(this.PCM_FRAME_BYTES);
     silence.fill(0);
 
     for (let i = 0; i < 5; i++) {
@@ -306,7 +289,11 @@ class AudioPlayer {
   }
 
   private onEnd(): void {
+    if (!this.playable) {
+      return;
+    }
     this.playable = false;
+    this.ffmpegEnded = false;
     this.currentResource = null;
 
     if (this.playInterval) {
@@ -322,6 +309,7 @@ class AudioPlayer {
    */
   public destroy(): void {
     this.stop();
+    this.encoder.delete();
     this.connection = null;
   }
 }
