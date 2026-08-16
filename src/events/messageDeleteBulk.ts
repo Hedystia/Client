@@ -16,6 +16,9 @@ export default class MessageDeleteBulk {
 
   async _patch(data: { d: GatewayMessageDeleteBulkDispatchData }): Promise<void> {
     const packet = data.d;
+    for (const messageId of packet.ids) {
+      this.client.messages.delete(messageId);
+    }
     this.client.emit("messageDeleteBulk", packet);
   }
 }
