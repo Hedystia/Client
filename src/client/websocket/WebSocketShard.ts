@@ -73,7 +73,7 @@ export interface WebSocketShardEventsMap {
 }
 
 /**
- * Robust gateway shard that combines djs's session/recovery model
+ * Robust gateway shard with session recovery and heartbeat management.
  *
  * @remarks
  * - Honors Discord's `max_concurrency` via the injected
@@ -128,6 +128,9 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
   private isAck = true;
   private failedDueToNetworkError = false;
   private destroyController: AbortController | null = null;
+  private helloTimeoutTimer: NodeJS.Timeout | null = null;
+  private readyTimeoutTimer: NodeJS.Timeout | null = null;
+  private destruction: Promise<void> | null = null;
 
   /**
    * @param id - Shard id.
@@ -212,12 +215,24 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
     ws.on("message", (data, isBinary) => this.onMessage(data, isBinary));
     ws.on("close", (code, reason) => this.onClose(code, reason));
     ws.on("error", (error) => this.onError(error));
+    this.scheduleHelloTimeout();
   }
 
   /**
    * Destroys the shard, optionally recovering via reconnect or resume.
    */
-  public async destroy(options: WebSocketShardDestroyOptions = {}): Promise<void> {
+  public destroy(options: WebSocketShardDestroyOptions = {}): Promise<void> {
+    if (this.destruction) {
+      return this.destruction;
+    }
+
+    this.destruction = this.destroyInternal(options).finally(() => {
+      this.destruction = null;
+    });
+    return this.destruction;
+  }
+
+  private async destroyInternal(options: WebSocketShardDestroyOptions = {}): Promise<void> {
     if (this.status === WebSocketShardStatus.Idle) {
       this.debug("Tried to destroy a shard that was already idle");
       return;
@@ -237,6 +252,7 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
 
     this.isAck = true;
     this.clearHeartbeat();
+    this.clearConnectionTimeouts();
     this.destroyController?.abort();
     this.destroyController = null;
 
@@ -247,18 +263,25 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
     }
 
     if (this.connection) {
-      this.connection.removeAllListeners("message");
-      this.connection.removeAllListeners("close");
+      const connection = this.connection;
+      connection.removeAllListeners("message");
+      connection.removeAllListeners("close");
 
-      if (this.connection.readyState === WebSocket.OPEN) {
+      if (connection.readyState === WebSocket.OPEN) {
         await new Promise<void>((resolve) => {
-          this.connection?.once("close", () => resolve());
-          this.connection?.close(code, options.reason ?? "");
+          connection.once("close", () => resolve());
+          connection.close(code, options.reason ?? "");
         });
+        this.emit(WebSocketShardEvents.Closed, code);
+      } else if (
+        connection.readyState === WebSocket.CONNECTING ||
+        connection.readyState === WebSocket.CLOSING
+      ) {
+        connection.terminate();
         this.emit(WebSocketShardEvents.Closed, code);
       }
 
-      this.connection.removeAllListeners();
+      connection.removeAllListeners();
       this.connection = null;
     }
 
@@ -361,6 +384,51 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
     this.flushOfflineQueue();
   }
 
+  private scheduleHelloTimeout(): void {
+    this.clearHelloTimeout();
+    this.helloTimeoutTimer = setTimeout(() => {
+      this.handleConnectionTimeout("HELLO");
+    }, this.options.helloTimeout);
+  }
+
+  private scheduleReadyTimeout(): void {
+    this.clearReadyTimeout();
+    this.readyTimeoutTimer = setTimeout(() => {
+      this.handleConnectionTimeout("READY");
+    }, this.options.readyTimeout);
+  }
+
+  private handleConnectionTimeout(stage: "HELLO" | "READY"): void {
+    const error = new GatewayError(
+      ShardSocketCloseCodes.Timeout,
+      `Timed out waiting for ${stage} from the gateway`,
+    );
+    this.emit(WebSocketShardEvents.Error, error);
+    this.destroy({
+      code: ShardSocketCloseCodes.Timeout,
+      reason: `Timed out waiting for ${stage}`,
+    }).catch(() => undefined);
+  }
+
+  private clearHelloTimeout(): void {
+    if (this.helloTimeoutTimer) {
+      clearTimeout(this.helloTimeoutTimer);
+      this.helloTimeoutTimer = null;
+    }
+  }
+
+  private clearReadyTimeout(): void {
+    if (this.readyTimeoutTimer) {
+      clearTimeout(this.readyTimeoutTimer);
+      this.readyTimeoutTimer = null;
+    }
+  }
+
+  private clearConnectionTimeouts(): void {
+    this.clearHelloTimeout();
+    this.clearReadyTimeout();
+  }
+
   private flushOfflineQueue(): void {
     while (this.offlineQueue.length > 0) {
       const next = this.offlineQueue.shift();
@@ -397,6 +465,8 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
 
     switch (payload.op) {
       case GatewayOpcodes.Hello: {
+        this.clearHelloTimeout();
+        this.scheduleReadyTimeout();
         this.heart.interval = payload.d.heartbeat_interval;
         this.emit(WebSocketShardEvents.Hello, this.heart.interval);
         this.scheduleInitialHeartbeat();
@@ -459,6 +529,7 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
 
         switch (payload.t) {
           case GatewayDispatchEvents.Ready: {
+            this.clearReadyTimeout();
             this.status = WebSocketShardStatus.Ready;
             this.data.sessionId = payload.d.session_id;
             this.data.resumeGatewayURL = payload.d.resume_gateway_url;
@@ -466,6 +537,7 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
             break;
           }
           case GatewayDispatchEvents.Resumed: {
+            this.clearReadyTimeout();
             this.status = WebSocketShardStatus.Ready;
             this.debug(`Resumed and replayed ${this.replayedEvents} events`);
             this.emit(WebSocketShardEvents.Resumed);
@@ -615,6 +687,7 @@ export class WebSocketShard extends EventEmitter<WebSocketShardEventsMap> {
   }
 
   private async onClose(code: number, reason: Buffer): Promise<void> {
+    this.clearConnectionTimeouts();
     this.emit(WebSocketShardEvents.Closed, code);
     this.debug(`WebSocket closed with code ${code} and reason "${reason.toString()}"`);
 
