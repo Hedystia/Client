@@ -1,5 +1,6 @@
-import type { APIRole } from "discord-api-types/v10";
+import type { APIRole, RESTPatchAPIGuildRoleJSONBody } from "discord-api-types/v10";
 import type Client from "../client";
+import { CDN, ImageFormat } from "../utils/constants";
 
 class RoleStructure<T extends APIRole = APIRole> {
   public readonly client: Client;
@@ -33,6 +34,25 @@ class RoleStructure<T extends APIRole = APIRole> {
     const role = this as unknown as APIRole;
     const hex = role.color.toString(16).padStart(6, "0");
     return `#${hex}`;
+  }
+
+  /**
+   * The role icon URL.
+   *
+   * @param options - Icon formatting options.
+   * @returns The role icon URL, or null when this role has no icon.
+   */
+  public iconURL(options?: {
+    size?: 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096;
+    extension?: "png" | "jpg" | "webp";
+  }): string | null {
+    const role = this as unknown as APIRole;
+    if (!role.icon) {
+      return null;
+    }
+    const extension =
+      options?.extension === "jpg" ? ImageFormat.JPEG : (options?.extension ?? ImageFormat.PNG);
+    return `${CDN.roleIcon(role.id, role.icon, extension as Parameters<typeof CDN.roleIcon>[2])}?size=${options?.size ?? 1024}`;
   }
 
   /**
@@ -107,6 +127,55 @@ class RoleStructure<T extends APIRole = APIRole> {
   public get isGuildLinkedRole(): boolean {
     const role = this as unknown as APIRole;
     return role.tags?.guild_connections !== undefined;
+  }
+
+  /**
+   * Edits this role using Discord's official role edit body.
+   *
+   * @param data - The official Discord role edit body.
+   * @param reason - Optional audit-log reason.
+   * @returns The edited role, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/guild#modify-guild-role
+   */
+  public edit(
+    data: RESTPatchAPIGuildRoleJSONBody,
+    reason?: string,
+  ): Promise<RoleStructureInstance | null> {
+    const role = this as unknown as APIRole;
+    return this.client.roles.edit(this.guild_id, role.id, data, reason);
+  }
+
+  /**
+   * Deletes this role from its guild.
+   *
+   * @param reason - Optional audit-log reason.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/guild#delete-guild-role
+   */
+  public delete(reason?: string): Promise<void> {
+    const role = this as unknown as APIRole;
+    return this.client.roles.delete(this.guild_id, role.id, reason);
+  }
+
+  /**
+   * Moves this role to a new position in its guild.
+   *
+   * @param position - The target role position.
+   * @param reason - Optional audit-log reason.
+   * @returns The updated role, or null when it was not included in Discord's response.
+   * @see https://docs.discord.com/developers/resources/guild#modify-guild-role-positions
+   */
+  public async setPosition(
+    position: number,
+    reason?: string,
+  ): Promise<RoleStructureInstance | null> {
+    const role = this as unknown as APIRole;
+    const roles = await this.client.roles.setPositions(
+      this.guild_id,
+      [{ id: role.id, position }],
+      reason,
+    );
+    return roles.find((updatedRole) => updatedRole.id === role.id) ?? null;
   }
 }
 
