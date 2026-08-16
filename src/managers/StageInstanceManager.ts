@@ -1,8 +1,14 @@
-import type { APIStageInstance } from "discord-api-types/v10";
+import type {
+  APIStageInstance,
+  RESTDeleteAPIStageInstanceResult,
+  RESTPatchAPIStageInstanceJSONBody,
+  RESTPostAPIStageInstanceJSONBody,
+} from "discord-api-types/v10";
 import type Client from "../client";
 import type { StageInstanceStructureInstance } from "../structures/StageInstanceStructure";
 import StageInstanceStructure from "../structures/StageInstanceStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class StageInstanceManager {
   client: Client;
@@ -45,7 +51,7 @@ export default class StageInstanceManager {
     }
 
     const instance = (await this.client.rest.get(
-      `/stage-instances/${channelId}`,
+      Routes.stageInstance(channelId),
     )) as APIStageInstance | null;
 
     if (!instance) {
@@ -57,6 +63,67 @@ export default class StageInstanceManager {
     return instanceStructure;
   }
 
+  /**
+   * Creates a stage instance for a stage channel.
+   *
+   * @param data - The official Discord stage-instance creation body.
+   * @returns The created stage instance, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/stage-instance#create-stage-instance
+   */
+  public async create(
+    data: RESTPostAPIStageInstanceJSONBody,
+  ): Promise<StageInstanceStructureInstance | null> {
+    const instance = (await this.client.rest.post(Routes.stageInstances(), {
+      body: data,
+    })) as APIStageInstance | null;
+    if (!instance) {
+      return null;
+    }
+    const structure = new StageInstanceStructure(instance, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
+  }
+
+  /**
+   * Edits a stage instance.
+   *
+   * @param channelId - The stage channel ID.
+   * @param data - The official Discord stage-instance edit body.
+   * @returns The edited stage instance, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/stage-instance#modify-stage-instance
+   */
+  public async edit(
+    channelId: string,
+    data: RESTPatchAPIStageInstanceJSONBody,
+  ): Promise<StageInstanceStructureInstance | null> {
+    const instance = (await this.client.rest.patch(Routes.stageInstance(channelId), {
+      body: data,
+    })) as APIStageInstance | null;
+    if (!instance) {
+      return null;
+    }
+    const structure = new StageInstanceStructure(instance, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
+  }
+
+  /**
+   * Deletes a stage instance.
+   *
+   * @param channelId - The stage channel ID.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/stage-instance#delete-stage-instance
+   */
+  public async delete(channelId: string): Promise<RESTDeleteAPIStageInstanceResult> {
+    await this.client.rest.delete(Routes.stageInstance(channelId));
+    this._remove(channelId);
+  }
+
+  /**
+   * Gets the stage-instance cache.
+   *
+   * @returns The stage-instance cache.
+   */
   public get cache(): Cache<string, StageInstanceStructureInstance> {
     return this._cache;
   }
