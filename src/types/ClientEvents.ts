@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import type {
   APIUnavailableGuild,
+  GatewayChannelInfoDispatchData,
   GatewayDispatchPayload,
   GatewayGuildEmojisUpdateDispatchData,
   GatewayGuildIntegrationsUpdateDispatchData,
@@ -10,13 +11,16 @@ import type {
   GatewayGuildSoundboardSoundsUpdateDispatchData,
   GatewayGuildSoundboardSoundUpdateDispatchData,
   GatewayGuildStickersUpdateDispatchData,
-  GatewayInteractionCreateDispatchData,
   GatewayMessageDeleteBulkDispatchData,
   GatewayMessageDeleteDispatchData,
   GatewayMessageReactionRemoveAllDispatchData,
   GatewayMessageReactionRemoveEmojiDispatchData,
+  GatewayRateLimitedDispatchData,
   GatewayReadyDispatchData,
   GatewaySoundboardSoundsDispatchData,
+  GatewayVoiceChannelStartTimeUpdateDispatchData,
+  GatewayVoiceChannelStatusUpdateDispatchData,
+  GatewayWebhooksUpdateDispatchData,
 } from "discord-api-types/v10";
 import type { ApplicationCommandPermissionsStructureInstance } from "../structures/ApplicationCommandPermissionsStructure";
 import type { AuditLogEntryStructureInstance } from "../structures/AuditLogEntryStructure";
@@ -30,6 +34,7 @@ import type { GuildScheduledEventStructureInstance } from "../structures/GuildSc
 import type { GuildSoundboardSoundStructureInstance } from "../structures/GuildSoundboardSoundStructure";
 import type { GuildStructureInstance } from "../structures/GuildStructure";
 import type { IntegrationStructureInstance } from "../structures/IntegrationStructure";
+import type { InteractionStructureInstance } from "../structures/InteractionStructure";
 import type { InviteStructureInstance } from "../structures/InviteStructure";
 import type { MemberStructureInstance } from "../structures/MemberStructure";
 import type { MessagePollVoteStructureInstance } from "../structures/MessagePollVoteStructure";
@@ -47,9 +52,18 @@ import type { UserStructureInstance } from "../structures/UserStructure";
 import type { VoiceChannelEffectSendStructureInstance } from "../structures/VoiceChannelEffectSendStructure";
 import type { VoiceServerUpdateStructureInstance } from "../structures/VoiceServerUpdateStructure";
 import type { VoiceStateStructureInstance } from "../structures/VoiceStateStructure";
-import type { WebhookStructureInstance } from "../structures/WebhookStructure";
+import type { VoiceAudioPacket } from "../voice/VoiceConnection";
 
 export interface ClientEvents {
+  /** Emitted for recoverable client errors when an error listener is attached. */
+  error: [Error];
+  /** Emitted for diagnostic gateway messages. */
+  debug: [string, number?];
+  /** Emitted for non-fatal client warnings. */
+  warn: [string];
+  /** Emitted when Discord invalidates the client session permanently. */
+  invalidated: [];
+
   // APPLICATION
   applicationCommandPermissionsUpdate: [ApplicationCommandPermissionsStructureInstance];
 
@@ -63,6 +77,7 @@ export interface ClientEvents {
   channelCreate: [ChannelStructureInstance];
   channelDelete: [ChannelStructureInstance];
   channelPinsUpdate: [ChannelPinsStructureInstance];
+  channelInfo: [GatewayChannelInfoDispatchData];
   channelUpdate: [ChannelStructureInstance];
 
   // ENTITLEMENT
@@ -107,7 +122,7 @@ export interface ClientEvents {
   integrationUpdate: [IntegrationStructureInstance];
 
   // INTERACTION
-  interactionCreate: [GatewayInteractionCreateDispatchData];
+  interactionCreate: [InteractionStructureInstance];
 
   // INVITE
   inviteCreate: [InviteStructureInstance];
@@ -115,7 +130,7 @@ export interface ClientEvents {
 
   // MESSAGE
   messageCreate: [MessageStructureInstance];
-  messageDelete: [GatewayMessageDeleteDispatchData];
+  messageDelete: [MessageStructureInstance | GatewayMessageDeleteDispatchData];
   messageDeleteBulk: [GatewayMessageDeleteBulkDispatchData];
   messagePollVoteAdd: [MessagePollVoteStructureInstance];
   messagePollVoteRemove: [MessagePollVoteStructureInstance];
@@ -133,6 +148,7 @@ export interface ClientEvents {
 
   // RESUMED
   resumed: [];
+  rateLimited: [GatewayRateLimitedDispatchData];
 
   // STAGE
   stageInstanceCreate: [StageInstanceStructureInstance];
@@ -160,11 +176,16 @@ export interface ClientEvents {
 
   // VOICE
   voiceChannelEffectSend: [VoiceChannelEffectSendStructureInstance];
+  voiceChannelStartTimeUpdate: [GatewayVoiceChannelStartTimeUpdateDispatchData];
+  voiceChannelStatusUpdate: [GatewayVoiceChannelStatusUpdateDispatchData];
   voiceServerUpdate: [VoiceServerUpdateStructureInstance];
   voiceStateUpdate: [VoiceStateStructureInstance];
+  voiceAudio: [VoiceAudioPacket];
+  voiceError: [Error];
+  voiceWarn: [string];
 
   // WEBHOOK
-  webhooksUpdate: [WebhookStructureInstance];
+  webhooksUpdate: [GatewayWebhooksUpdateDispatchData];
 
   // DISPATCH
   dispatch: [GatewayDispatchPayload, number];
