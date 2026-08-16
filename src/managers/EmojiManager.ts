@@ -1,8 +1,15 @@
-import type { APIEmoji } from "discord-api-types/v10";
+import type {
+  APIEmoji,
+  RESTPatchAPIGuildEmojiJSONBody,
+  RESTPatchAPIGuildEmojiResult,
+  RESTPostAPIGuildEmojiJSONBody,
+  RESTPostAPIGuildEmojiResult,
+} from "discord-api-types/v10";
 import type Client from "../client";
 import type { GuildEmojiStructureInstance } from "../structures/GuildEmojiStructure";
 import GuildEmojiStructure from "../structures/GuildEmojiStructure";
 import Cache from "../utils/cache";
+import { Routes } from "../utils/constants";
 
 export default class EmojiManager {
   client: Client;
@@ -92,7 +99,7 @@ export default class EmojiManager {
       }
     }
 
-    const emojis = (await this.client.rest.get(`/guilds/${guildId}/emojis`)) as APIEmoji[] | null;
+    const emojis = (await this.client.rest.get(Routes.guildEmojis(guildId))) as APIEmoji[] | null;
 
     if (!emojis) {
       return cached;
@@ -123,7 +130,7 @@ export default class EmojiManager {
     }
 
     const emoji = (await this.client.rest.get(
-      `/guilds/${guildId}/emojis/${emojiId}`,
+      Routes.guildEmoji(guildId, emojiId),
     )) as APIEmoji | null;
 
     if (!emoji) {
@@ -133,6 +140,76 @@ export default class EmojiManager {
     const emojiStructure = new GuildEmojiStructure(emoji, guildId, this.client);
     this._add(emojiStructure, { enabled: true, force: false });
     return emojiStructure;
+  }
+
+  /**
+   * Creates a custom emoji in a guild.
+   *
+   * @param guildId - The guild ID.
+   * @param data - The official Discord emoji-create body.
+   * @param reason - Optional audit-log reason.
+   * @returns The created emoji, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/emoji#create-guild-emoji
+   */
+  public async create(
+    guildId: string,
+    data: RESTPostAPIGuildEmojiJSONBody,
+    reason?: string,
+  ): Promise<GuildEmojiStructureInstance | null> {
+    const emoji = (await this.client.rest.post(Routes.guildEmojis(guildId), {
+      body: data,
+      reason,
+    })) as RESTPostAPIGuildEmojiResult | null;
+    if (!emoji) {
+      return null;
+    }
+
+    const structure = new GuildEmojiStructure(emoji, guildId, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
+  }
+
+  /**
+   * Edits a custom emoji in a guild.
+   *
+   * @param guildId - The guild ID.
+   * @param emojiId - The emoji ID.
+   * @param data - The official Discord emoji-edit body.
+   * @param reason - Optional audit-log reason.
+   * @returns The edited emoji, or null when Discord returned no data.
+   * @see https://docs.discord.com/developers/resources/emoji#modify-guild-emoji
+   */
+  public async edit(
+    guildId: string,
+    emojiId: string,
+    data: RESTPatchAPIGuildEmojiJSONBody,
+    reason?: string,
+  ): Promise<GuildEmojiStructureInstance | null> {
+    const emoji = (await this.client.rest.patch(Routes.guildEmoji(guildId, emojiId), {
+      body: data,
+      reason,
+    })) as RESTPatchAPIGuildEmojiResult | null;
+    if (!emoji) {
+      return null;
+    }
+
+    const structure = new GuildEmojiStructure(emoji, guildId, this.client);
+    this._add(structure, { enabled: true, force: true });
+    return structure;
+  }
+
+  /**
+   * Deletes a custom emoji from a guild.
+   *
+   * @param guildId - The guild ID.
+   * @param emojiId - The emoji ID.
+   * @param reason - Optional audit-log reason.
+   * @returns A promise that resolves when Discord accepts the request.
+   * @see https://docs.discord.com/developers/resources/emoji#delete-guild-emoji
+   */
+  public async delete(guildId: string, emojiId: string, reason?: string): Promise<void> {
+    await this.client.rest.delete(Routes.guildEmoji(guildId, emojiId), { reason });
+    this._remove(emojiId);
   }
 
   /**
